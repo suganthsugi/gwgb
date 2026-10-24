@@ -157,6 +157,7 @@ This file records the design decisions the spec leaves open.
   | pytest | 8.3.4 | apexcharts / react-apexcharts | 3.54.1 / 1.4.1 |
   | ruff (lint only) | 0.8.4 | vite / @vitejs/plugin-react | 5.4.11 / 4.3.4 |
   | | | typescript | 5.6.3 |
+  | | | @types/react / @types/react-dom (added in T002 for strict TS) | 18.3.18 / 18.3.5 |
   | | | vitest / jsdom | 2.1.8 / 25.0.1 |
   | | | @testing-library/react / user-event / jest-dom | 16.1.0 / 14.5.2 / 6.6.3 |
 

@@ -33,7 +33,8 @@ function ComparisonCard({ label, c }: { label: string; c: RunComparison | null }
 export default function DriftPanel({ decision }: { decision: Decision }) {
   const { drift, driftHours } = decision;
   const options: ApexOptions = {
-    chart: { id: "drift", toolbar: { show: false }, animations: { enabled: false } },
+    chart: { id: "drift", toolbar: { show: false }, zoom: { enabled: false }, animations: { enabled: false } },
+    dataLabels: { enabled: false },
     colors: [colors.forecast],
     stroke: { width: 2, dashArray: 6 },
     markers: { size: 4 },

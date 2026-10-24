@@ -23,7 +23,12 @@ const toGw = (mw: number | null) => (mw === null ? null : Number((mw / 1000).toF
 
 function base(id: string, color: string): ApexOptions {
   return {
-    chart: { id, toolbar: { show: false }, animations: { enabled: false } },
+    chart: {
+      id,
+      toolbar: { show: false },
+      zoom: { enabled: false },
+      animations: { enabled: false },
+    },
     colors: [color],
     dataLabels: { enabled: false },
     yaxis: { title: { text: "GW" }, labels: { formatter: (v) => v.toFixed(1) } },
@@ -154,6 +159,7 @@ export default function AccuracyCharts({ report, horizon, onOpenDay }: Props) {
                   chart: {
                     id: "bias-day",
                     toolbar: { show: false },
+                    zoom: { enabled: false },
                     animations: { enabled: false },
                     events: {
                       dataPointSelection: (_e: unknown, _c: unknown, config: { dataPointIndex: number }) => {

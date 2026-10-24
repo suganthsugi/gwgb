@@ -1,4 +1,4 @@
-import { Alert, Skeleton, Typography } from "@mui/material";
+import { Alert, Box, Skeleton, Typography } from "@mui/material";
 import type { ReactNode } from "react";
 
 interface Props {
@@ -15,5 +15,6 @@ export default function DataState({ loading, error, empty, emptyText, height = 1
   if (loading) return <Skeleton variant="rounded" height={height} data-testid="loading" />;
   if (error) return <Alert severity="error">Couldn't load data: {error}</Alert>;
   if (empty) return <Typography color="text.secondary">{emptyText ?? "No data."}</Typography>;
-  return <>{children}</>;
+  // Box keeps a Grid container's negative margins when this sits inside a Stack
+  return <Box>{children}</Box>;
 }

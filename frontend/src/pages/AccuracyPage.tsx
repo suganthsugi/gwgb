@@ -85,7 +85,9 @@ export default function AccuracyPage({ onOpenDay }: Props) {
         )}
       </DataState>
 
-      <AccuracyCharts report={report} horizon={horizon} onOpenDay={onOpenDay} />
+      <Box>
+        <AccuracyCharts report={report} horizon={horizon} onOpenDay={onOpenDay} />
+      </Box>
 
       <Card variant="outlined">
         <CardContent>

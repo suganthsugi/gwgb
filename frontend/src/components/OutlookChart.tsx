@@ -40,7 +40,8 @@ export default function OutlookChart({ points, showActuals }: Props) {
   ];
   const dash = (solid: boolean) => (solid ? 0 : 6);
   const options: ApexOptions = {
-    chart: { id: "outlook", toolbar: { show: false }, animations: { enabled: false } },
+    chart: { id: "outlook", toolbar: { show: false }, zoom: { enabled: false }, animations: { enabled: false } },
+    dataLabels: { enabled: false },
     colors: [colors.forecast, colors.forecast, colors.actual],
     fill: { opacity: [0.18, 1, 1] },
     stroke: {
