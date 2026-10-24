@@ -177,3 +177,26 @@ def test_no_run_still_returns_band_and_history(client):
     assert body["drift"] == [] and body["driftHours"] is None
     assert body["changeVsPrevious"] is None and body["changeVs24h"] is None
     assert body["metrics"] is None
+
+
+# --- /api/decision: US3 day metrics -----------------------------------------------------------
+
+
+def test_day_metrics_for_jan15(jan15):
+    m = jan15["metrics"]
+    assert m is not None
+    assert m["n"] == 24
+    assert m["rmse"] >= m["mae"] >= abs(m["bias"])
+
+
+def test_day_without_actuals_has_null_metrics(client):
+    from app.data import Snapshot
+    from tests.fixtures import make_snapshot
+
+    full = make_snapshot()
+    actuals = full.actuals[full.actuals.index.normalize() != "2026-01-04"]
+    snap = Snapshot(actuals=actuals, forecasts=full.forecasts, runs=full.runs)
+    app.dependency_overrides[get_snapshot] = lambda: snap
+    body = _decision(client, "delivery_date=2026-01-04")
+    assert body["metrics"] is None
+    assert all(p["actual"] is None and p["error"] is None for p in body["points"])

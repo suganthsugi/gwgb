@@ -155,3 +155,67 @@ describe("OutlookPage — US2", () => {
     expect(screen.getByRole("columnheader", { name: "High (GW)" })).toBeInTheDocument();
   });
 });
+
+describe("OutlookPage — US3 (AC6)", () => {
+  const withDayBias = (bias: number): Decision => ({
+    ...decision,
+    metrics: { ...decision.metrics!, bias },
+  });
+
+  it("hides every actual-outturn element while the switch is off", async () => {
+    routeDecision({ "09:00": decision });
+    renderOutlook();
+    await screen.findByRole("region", { name: "Signal" });
+    expect(screen.getByLabelText("Show actual outturn")).not.toBeChecked();
+    expect(chartWithSeries("Actual")).toBeUndefined();
+    for (const name of ["Actual (GW)", "Error (GW)", "In range"]) {
+      expect(screen.queryByRole("columnheader", { name })).not.toBeInTheDocument();
+    }
+    for (const label of ["Actual average", "Bias", "MAE"]) {
+      expect(screen.queryByLabelText(label)).not.toBeInTheDocument();
+    }
+    expect(screen.queryByText(/Actual wind averaged/)).not.toBeInTheDocument();
+  });
+
+  it("shows them when the switch is turned on", async () => {
+    routeDecision({ "09:00": decision });
+    renderOutlook();
+    await screen.findByRole("region", { name: "Signal" });
+    await userEvent.click(screen.getByLabelText("Show actual outturn"));
+    expect(chartWithSeries("Actual")).toBeDefined();
+    for (const name of ["Actual (GW)", "Error (GW)", "In range"]) {
+      expect(screen.getByRole("columnheader", { name })).toBeInTheDocument();
+    }
+    expect(screen.getByLabelText("Actual average")).toHaveTextContent("10.2 GW");
+    expect(screen.getByLabelText("Bias")).toHaveTextContent("+1.5 GW");
+    expect(screen.getByLabelText("MAE")).toHaveTextContent("1.5 GW");
+    expect(screen.getByText(/Actual wind averaged/)).toBeInTheDocument();
+    expect(screen.getAllByRole("cell", { name: "Yes" }).length).toBeGreaterThan(0);
+    await userEvent.click(screen.getByLabelText("Show actual outturn"));
+    expect(screen.queryByLabelText("Bias")).not.toBeInTheDocument();
+  });
+
+  it.each([
+    [1200, true, "buyer would be short"],
+    [-1200, true, "buyer would be long"],
+    [900, false, "buyer would be short"],
+  ])("colours a day bias of %d MW as risk: %s", async (bias, risk, hint) => {
+    routeDecision({ "09:00": withDayBias(bias) });
+    renderOutlook({ showActuals: true });
+    const card = await screen.findByLabelText("Bias");
+    expect(within(card).getByText(/GW$/)).toHaveAttribute("data-risk", String(risk));
+    expect(card).toHaveTextContent(hint);
+  });
+
+  it("colours hourly errors above 3 GW as risk", async () => {
+    const big: Decision = {
+      ...decision,
+      points: decision.points.map((p, h) => (h === 3 ? { ...p, actual: 8500, error: 3500 } : p)),
+    };
+    routeDecision({ "09:00": big });
+    renderOutlook({ showActuals: true });
+    const rows = await screen.findAllByRole("row");
+    expect(within(rows[4]).getByText("+3.5")).toHaveAttribute("data-risk", "true");
+    expect(within(rows[5]).getByText("+1.5")).toHaveAttribute("data-risk", "false");
+  });
+});

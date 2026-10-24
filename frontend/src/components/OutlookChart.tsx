@@ -6,12 +6,14 @@ import { colors, seriesStyle } from "../theme";
 
 interface Props {
   points: HourlyPoint[];
+  showActuals: boolean;
 }
 
 const toGw = (mw: number | null) => (mw === null ? null : mw / 1000);
 
-/** FR-019: likely range as a band and the forecast as a dashed line, in GW. Null hours are gaps. */
-export default function OutlookChart({ points }: Props) {
+/** FR-019: likely range as a band, the forecast as a dashed amber line and, when shown, the
+ * actual as a solid teal line, in GW. Null hours are gaps. */
+export default function OutlookChart({ points, showActuals }: Props) {
   const series = [
     {
       name: "Likely range (P10–P90)",
@@ -26,14 +28,24 @@ export default function OutlookChart({ points }: Props) {
       type: "line",
       data: points.map((p) => ({ x: hhmm(p.time), y: toGw(p.forecast) })),
     },
+    ...(showActuals
+      ? [
+          {
+            name: "Actual",
+            type: "line",
+            data: points.map((p) => ({ x: hhmm(p.time), y: toGw(p.actual) })),
+          },
+        ]
+      : []),
   ];
+  const dash = (solid: boolean) => (solid ? 0 : 6);
   const options: ApexOptions = {
     chart: { id: "outlook", toolbar: { show: false }, animations: { enabled: false } },
-    colors: [colors.forecast, colors.forecast],
-    fill: { opacity: [0.18, 1] },
+    colors: [colors.forecast, colors.forecast, colors.actual],
+    fill: { opacity: [0.18, 1, 1] },
     stroke: {
-      width: [0, 3],
-      dashArray: [0, seriesStyle.forecast.dash ? 6 : 0],
+      width: [0, 3, 3],
+      dashArray: [0, dash(!seriesStyle.forecast.dash), dash(!seriesStyle.actual.dash)],
       curve: "straight",
     },
     xaxis: { type: "category", title: { text: "Hour (UTC)" } },

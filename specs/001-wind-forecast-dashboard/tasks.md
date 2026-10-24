@@ -250,9 +250,9 @@ toggled off.
 
 ### Tests for User Story 3 ⚠️ (write first, must fail)
 
-- [ ] T038 [P] [US3] Add a failing test to `backend/tests/test_api.py`: for `delivery_date=2026-01-15`, `metrics` is not null, `metrics.n == 24` and `rmse ≥ mae ≥ |bias|`. A fixture day without actuals → `metrics: null`
-- [ ] T039 [P] [US3] Add failing tests to `frontend/src/test/insights.test.ts`: `signal(decision, {showActuals: true}).verdict` says the adjusted figure was closer when |adjusted − mean actual| < |forecast mean − mean actual|, and says the raw forecast was closer otherwise. There is no verdict when `showActuals` is false
-- [ ] T040 [P] [US3] Extend `frontend/src/test/OutlookPage.test.tsx` for **AC6**:
+- [X] T038 [P] [US3] Add a failing test to `backend/tests/test_api.py`: for `delivery_date=2026-01-15`, `metrics` is not null, `metrics.n == 24` and `rmse ≥ mae ≥ |bias|`. A fixture day without actuals → `metrics: null`
+- [X] T039 [P] [US3] Add failing tests to `frontend/src/test/insights.test.ts`: `signal(decision, {showActuals: true}).verdict` says the adjusted figure was closer when |adjusted − mean actual| < |forecast mean − mean actual|, and says the raw forecast was closer otherwise. There is no verdict when `showActuals` is false
+- [X] T040 [P] [US3] Extend `frontend/src/test/OutlookPage.test.tsx` for **AC6**:
   - With the switch off (default), there is no "Actual" series, no Actual/Error/In range columns, no actual-average, bias or MAE cards, and no verdict.
   - With it on, all of these appear.
   - The bias card is risk-coloured when |bias| > 1 GW (test +1.2 GW and −1.2 GW coloured, +0.9 GW not) and hints short (positive) or long (negative).
@@ -260,9 +260,9 @@ toggled off.
 
 ### Implementation for User Story 3
 
-- [ ] T041 [US3] Add `metrics` (from `logic.summarize_metrics` over the day's scored hours) to `GET /api/decision` in `backend/app/main.py`. T038 must pass
-- [ ] T042 [US3] Add the verdict to `signal()` in `frontend/src/insights.ts` (an `options.showActuals` flag). T039 must pass
-- [ ] T043 [US3] Implement the actuals view in `frontend/src/pages/OutlookPage.tsx`, `frontend/src/components/OutlookChart.tsx` and `frontend/src/components/HourlyTable.tsx`, so that T040 passes:
+- [X] T041 [US3] Add `metrics` (from `logic.summarize_metrics` over the day's scored hours) to `GET /api/decision` in `backend/app/main.py`. T038 must pass
+- [X] T042 [US3] Add the verdict to `signal()` in `frontend/src/insights.ts` (an `options.showActuals` flag). T039 must pass
+- [X] T043 [US3] Implement the actuals view in `frontend/src/pages/OutlookPage.tsx`, `frontend/src/components/OutlookChart.tsx` and `frontend/src/components/HourlyTable.tsx`, so that T040 passes:
   - An "Actual" series in `colors.actual`, solid.
   - `KpiCard`s "Actual average", "Bias" (risk when |bias| > 1 GW; hint "Forecast too high — buyer would be short" for positive and "Forecast too low — buyer would be long" for negative) and "MAE".
   - Table columns Actual, Error (risk when |error| > 3 GW) and In range (`low ≤ actual ≤ high` → "Yes" or "No").

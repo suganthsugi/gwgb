@@ -107,6 +107,12 @@ def parse_cutoff(s: str) -> str:
     return s
 
 
+def _metrics(m: dict | None) -> dict | None:
+    if m is None:
+        return None
+    return {k: (v if k == "n" else _num(v)) for k, v in m.items()}
+
+
 def _comparison(c: dict | None) -> dict | None:
     if c is None:
         return None
@@ -149,7 +155,13 @@ def build_decision(snapshot: Snapshot, day: date, cutoff: str) -> dict:
         "changeVs24h": (
             None if used is None else _comparison(logic.compare_runs(snapshot, day, used, "24h"))
         ),
-        "metrics": None,
+        "metrics": _metrics(
+            logic.summarize_metrics(
+                [p["error"] for p in points],
+                [p["actual"] for p in points],
+                [p["forecast"] for p in points],
+            )
+        ),
         "points": [_point(p) for p in points],
     }
 

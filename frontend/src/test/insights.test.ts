@@ -87,3 +87,23 @@ describe("R7 watch list (FR-011)", () => {
     expect(watchList({ ...decision, points: [], changeVs24h: null })).toEqual([]);
   });
 });
+
+describe("R6 verdict with actuals (US3)", () => {
+  it("says the adjusted figure was closer when it was", () => {
+    // raw 11,666.7; adjusted 9,866.7; actual mean 10,166.7 → adjusted is 300 away, raw 1,500
+    const s = signal(withBias(1800), { showActuals: true })!;
+    expect(s.verdict).toContain("the adjusted figure was closer");
+    expect(s.verdict).toContain("10.2 GW");
+  });
+
+  it("says the raw forecast was closer otherwise", () => {
+    // adjusted 12,666.7 is 2,500 away; raw is 1,500 away
+    const s = signal(withBias(-1000), { showActuals: true })!;
+    expect(s.verdict).toContain("the raw forecast was closer");
+  });
+
+  it("has no verdict when actuals are hidden", () => {
+    expect(signal(withBias(1800))!.verdict).toBeUndefined();
+    expect(signal(withBias(1800), { showActuals: false })!.verdict).toBeUndefined();
+  });
+});

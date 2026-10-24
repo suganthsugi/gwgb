@@ -11,7 +11,7 @@ import OutlookChart from "../components/OutlookChart";
 import RunInUseAlert from "../components/RunInUseAlert";
 import SignalCard from "../components/SignalCard";
 import WatchListCard from "../components/WatchListCard";
-import { dayLabel, dayMwh, gw, previousDay } from "../format";
+import { dayLabel, dayMwh, gw, previousDay, signedGw } from "../format";
 import { signal, watchList } from "../insights";
 
 interface Props {
@@ -30,8 +30,45 @@ export function mean(values: (number | null)[]): number | null {
   return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
 }
 
+export const BIAS_RISK_MW = 1000;
+
+function biasHint(bias: number): string {
+  if (bias > 0) return "Forecast too high — buyer would be short";
+  if (bias < 0) return "Forecast too low — buyer would be long";
+  return "Forecast on target";
+}
+
+/** FR-018: the day's actual average, bias and MAE (only when actuals are shown). */
+function ActualCards({ metrics }: { metrics: Decision["metrics"] }) {
+  if (metrics === null) {
+    return (
+      <Grid item xs={12} md={6}>
+        <KpiCard label="Actual average" value="–" hint="No actual outturn for this day yet." />
+      </Grid>
+    );
+  }
+  return (
+    <>
+      <Grid item xs={12} sm={4} md={2}>
+        <KpiCard label="Actual average" value={gw(metrics.meanActual)} />
+      </Grid>
+      <Grid item xs={12} sm={4} md={2}>
+        <KpiCard
+          label="Bias"
+          value={signedGw(metrics.bias)}
+          hint={biasHint(metrics.bias)}
+          risk={Math.abs(metrics.bias) > BIAS_RISK_MW}
+        />
+      </Grid>
+      <Grid item xs={12} sm={4} md={2}>
+        <KpiCard label="MAE" value={gw(metrics.mae)} hint="Average size of the hourly error" />
+      </Grid>
+    </>
+  );
+}
+
 export default function OutlookPage({ view, onChange }: Props) {
-  const { deliveryDate, cutoff } = view;
+  const { deliveryDate, cutoff, showActuals } = view;
   const [state, setState] = useState<Load>({ loading: true, error: null, data: null });
 
   useEffect(() => {
@@ -75,7 +112,7 @@ export default function OutlookPage({ view, onChange }: Props) {
       <ControlsCard
         deliveryDate={deliveryDate}
         cutoff={cutoff}
-        showActuals={view.showActuals}
+        showActuals={showActuals}
         onChange={onChange}
       />
 
@@ -89,7 +126,7 @@ export default function OutlookPage({ view, onChange }: Props) {
             {d && (
               <Grid container spacing={2}>
                 <Grid item xs={12} md={6}>
-                  <SignalCard signal={signal(d)} />
+                  <SignalCard signal={signal(d, { showActuals })} />
                 </Grid>
                 <Grid item xs={12} md={6}>
                   <WatchListCard items={watchList(d)} />
@@ -114,11 +151,12 @@ export default function OutlookPage({ view, onChange }: Props) {
                     value={typicalRange}
                     hint={
                       d.history
-                        ? `Daily average, from the last ${d.history.days} days at this decision time`
+                        ? `Around the day's average forecast, from the last ${d.history.days} days' errors`
                         : undefined
                     }
                   />
                 </Grid>
+                {showActuals && <ActualCards metrics={d.metrics} />}
               </Grid>
             )}
           </DataState>
@@ -129,7 +167,7 @@ export default function OutlookPage({ view, onChange }: Props) {
                 Hourly outlook
               </Typography>
               <DataState loading={loading} error={error} height={320}>
-                {d && <OutlookChart points={d.points} />}
+                {d && <OutlookChart points={d.points} showActuals={showActuals} />}
               </DataState>
             </CardContent>
           </Card>
@@ -144,7 +182,7 @@ export default function OutlookPage({ view, onChange }: Props) {
                 Hour by hour
               </Typography>
               <DataState loading={loading} error={error} height={240}>
-                {d && <HourlyTable points={d.points} />}
+                {d && <HourlyTable points={d.points} showActuals={showActuals} />}
               </DataState>
             </CardContent>
           </Card>
