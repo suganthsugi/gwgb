@@ -8,8 +8,8 @@ constitution.
 
 ### I. The Spec Is the Source of Truth
 
-- `SPEC.md` defines behaviour. Code implements the spec; it MUST NOT silently extend or
-  contradict it.
+- The feature spec (`specs/*/spec.md`) defines behaviour. Code implements the spec; it MUST NOT
+  silently extend or contradict it.
 - A new question found while building MUST be answered in the spec first (with a decision note),
   then in code.
 - Every rule (R1–R9) and acceptance criterion (AC1–AC12) MUST be traceable to code and to at
@@ -19,7 +19,9 @@ constitution.
 
 - The app MUST show only what was knowable at the decision time. A forecast run published after
   the cutoff MUST NEVER influence the outlook for that decision.
-- History used for ranges and signals MUST exclude the day being viewed (leave-one-out).
+- History used for ranges and signals MUST only use delivery days whose delivery ended before
+  the decision time (for a cutoff on D-1, days up to D-2). The day being viewed, the day before
+  it and any later day are never used.
 - Any change touching forecast selection MUST keep the R1 tests passing and MUST add a test if it
   adds a case.
 
@@ -40,7 +42,8 @@ constitution.
 - Every API endpoint MUST have a test for its success shape and its error case.
 - Front-end tests MUST cover user-visible behaviour (what renders, what refetches), not
   implementation details.
-- Nothing is merged with failing tests or type errors.
+- Nothing is merged with failing tests, TypeScript type errors (`tsc --noEmit`) or Python lint
+  errors (`ruff check`). Python is not type-checked.
 
 ### V. Simplicity
 
@@ -66,7 +69,7 @@ constitution.
 
 ### VIII. AI-Assisted, Human-Owned
 
-- AI tools may generate code, tests and docs, working from this constitution and `SPEC.md`.
+- AI tools may generate code, tests and docs, working from this constitution and the feature spec.
 - A human reviews every change, and owns the domain rules and numbers.
 - AI usage MUST be declared in the README.
 
@@ -80,7 +83,7 @@ constitution.
 
 ## Development Workflow & Quality Gates
 
-- Order of work: spec (`SPEC.md`) → plan → tasks → tests → code.
+- Order of work: spec (`specs/*/spec.md`) → plan → tasks → tests → code.
 - A change is mergeable only when all tests pass, there are no type errors, and a human has
   reviewed it.
 - Changes to forecast selection, alignment, metrics, signal or watch list MUST include or update
@@ -97,5 +100,8 @@ constitution.
 ### Amendments
 
 - 2026-10-25: initial version.
+- 2026-10-25: v1.1.0 — Art. II history limited to days whose delivery ended before the decision
+  time (replaces leave-one-out); Art. IV gate is TypeScript types + ruff lint; spec path is
+  `specs/*/spec.md`.
 
-**Version**: 1.0.0 | **Ratified**: 2026-10-25 | **Last Amended**: 2026-10-25
+**Version**: 1.1.0 | **Ratified**: 2026-10-25 | **Last Amended**: 2026-10-25
