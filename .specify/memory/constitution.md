@@ -1,50 +1,101 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+# REint Weather Forecast Constitution
+
+Non-negotiable principles for building this app. Every spec, plan, task and code change (human
+or AI) MUST comply. When a change conflicts with this document, the change is wrong, not the
+constitution.
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. The Spec Is the Source of Truth
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+- `SPEC.md` defines behaviour. Code implements the spec; it MUST NOT silently extend or
+  contradict it.
+- A new question found while building MUST be answered in the spec first (with a decision note),
+  then in code.
+- Every rule (R1–R9) and acceptance criterion (AC1–AC12) MUST be traceable to code and to at
+  least one test.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### II. No Hindsight
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+- The app MUST show only what was knowable at the decision time. A forecast run published after
+  the cutoff MUST NEVER influence the outlook for that decision.
+- History used for ranges and signals MUST exclude the day being viewed (leave-one-out).
+- Any change touching forecast selection MUST keep the R1 tests passing and MUST add a test if it
+  adds a case.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### III. Correct Numbers Over More Features
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+- Domain logic (selection, alignment, metrics, signal, watch list) MUST live in pure functions
+  with no I/O or UI code.
+- Units MUST be explicit everywhere: MW for power, MWh for energy, GW only for display. Times
+  MUST be UTC and labelled.
+- Error is always `forecast − actual`. Positive means the forecast was too high.
+- When the data cannot support a number (missing hours, no run before cutoff), the app MUST show
+  an explicit empty state instead of a guess.
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+### IV. Test First for Logic
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+- Domain rules MUST get unit tests written before or with the code, using small hand-computed
+  fixtures.
+- Every API endpoint MUST have a test for its success shape and its error case.
+- Front-end tests MUST cover user-visible behaviour (what renders, what refetches), not
+  implementation details.
+- Nothing is merged with failing tests or type errors.
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+### V. Simplicity
+
+- The app has two screens: Day-ahead outlook and Forecast accuracy. New screens or controls
+  MUST have a spec change first.
+- No database server, auth or background jobs. Data is fetched once and cached as a committed
+  snapshot.
+- Prefer the platform and the chosen libraries (MUI, ApexCharts, pandas) over custom code or
+  extra dependencies.
+
+### VI. Consistent, Honest UI
+
+- Colour meaning is fixed: forecast = amber (dashed), actual = teal (solid), risk = red.
+- Wording MUST be for a power buyer: plain sentences, no internal jargon, no claims the data
+  does not support.
+- Every data area MUST have loading, error and empty states. The page never goes blank.
+- Controls MUST be keyboard-accessible and labelled.
+
+### VII. Reproducible
+
+- The app MUST run from a clean checkout with documented commands, and in Docker.
+- Dependency versions MUST be pinned. The data snapshot is versioned with the code.
+
+### VIII. AI-Assisted, Human-Owned
+
+- AI tools may generate code, tests and docs, working from this constitution and `SPEC.md`.
+- A human reviews every change, and owns the domain rules and numbers.
+- AI usage MUST be declared in the README.
+
+## Technology & Data Constraints
+
+- UI: MUI and ApexCharts. Data processing: pandas. Additions beyond these need a justification
+  under Article V.
+- Data source: a committed, versioned snapshot; no runtime database, auth or scheduled jobs.
+- Units and time: MW / MWh internally, GW for display only; all timestamps UTC and labelled.
+- Packaging: runnable locally from documented commands and via Docker, with pinned versions.
+
+## Development Workflow & Quality Gates
+
+- Order of work: spec (`SPEC.md`) → plan → tasks → tests → code.
+- A change is mergeable only when all tests pass, there are no type errors, and a human has
+  reviewed it.
+- Changes to forecast selection, alignment, metrics, signal or watch list MUST include or update
+  hand-computed unit tests.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+- This constitution supersedes other practices. Plans and reviews MUST check compliance.
+- Amend this document only deliberately, with a one-line reason and date in the Amendments log.
+- Versioning: MAJOR for removing or redefining an article; MINOR for adding an article or
+  materially expanding guidance; PATCH for wording and clarifications.
+- Reviews check compliance with Articles II, III and IV first.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+### Amendments
+
+- 2026-10-25: initial version.
+
+**Version**: 1.0.0 | **Ratified**: 2026-10-25 | **Last Amended**: 2026-10-25
