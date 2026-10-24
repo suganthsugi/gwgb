@@ -58,13 +58,13 @@ stories depend on these.
 
 ### Domain core: R1, R2, metrics (FR-005, FR-006, FR-013)
 
-- [ ] T007 Create `backend/tests/fixtures.py` with `make_snapshot()`, which builds a tiny hand-computed `Snapshot`:
+- [X] T007 Create `backend/tests/fixtures.py` with `make_snapshot()`, which builds a tiny hand-computed `Snapshot`:
   - Delivery days 2026-01-02 … 2026-01-06, so the R3 tests can use a short trailing window (`history_days=2`).
   - For each day D, runs at D-2 22:30 (covering D only until 21:00), D-1 07:30, D-1 09:00 (exactly at the default cutoff) and D-1 09:30 (after the cutoff), with distinct, easy forecast values per run.
   - Hourly actuals on the hour, plus half-hour rows that must be ignored by the join.
   - Comments giving the expected selections and errors.
   - A `make_snapshot(no_early_runs=True)` variant whose first run is published after 2026-01-01 00:00, so delivery day 2026-01-02 with cutoff 00:00 has no run (used by T020).
-- [ ] T008 Write failing R1 tests in `backend/tests/test_logic.py` using `fixtures.make_snapshot()`:
+- [X] T008 Write failing R1 tests in `backend/tests/test_logic.py` using `fixtures.make_snapshot()`:
   - The newest run with `publishTime ≤ cutoff` is used.
   - A run published exactly at the cutoff counts.
   - Runs after the cutoff are never used.
@@ -73,13 +73,13 @@ stories depend on these.
   - `horizonH = (time − publishTime)` in hours.
   - `minutesBeforeCutoff` = cutoff − `usedRun` in minutes.
   - Only on-the-hour actuals join (research D2).
-- [ ] T009 Write failing R2/R9 core-metric tests in `backend/tests/test_logic.py`:
+- [X] T009 Write failing R2/R9 core-metric tests in `backend/tests/test_logic.py`:
   - `error = forecast − actual`.
   - Errors `[−100, 0, 300]` → MAE 133.3, bias 66.7, RMSE 182.6, P90 absolute error 260.0 (linear interpolation, research D4), n 3.
   - `rmse ≥ mae ≥ |bias|`.
   - Hours with a missing actual or forecast are skipped.
   - nMAE = MAE ÷ mean actual × 100.
-- [ ] T010 Implement `backend/app/logic.py` so that T008 and T009 pass. It is pure, with no I/O:
+- [X] T010 Implement `backend/app/logic.py` so that T008 and T009 pass. It is pure, with no I/O:
   - Constants `WINDOW_START = date(2026, 1, 2)`, `WINDOW_END = date(2026, 2, 1)`, `DEFAULT_CUTOFF = "09:00"` and `HISTORY_DAYS = 30`.
   - No caching anywhere in `logic.py` (research D5).
   - `parse_cutoff(s)`, which accepts only `HH:MM` "on the hour, 00:00–23:00" and raises `ValueError` with a plain sentence otherwise.
@@ -87,7 +87,7 @@ stories depend on these.
   - `select_forecast(snapshot, day, cutoff)`, which returns `used_run`, `minutes_before_cutoff` and 24 hourly rows (`time`, `forecast`, `publishTime`, `horizonH`, `actual`, `error`).
   - `summarize_metrics(errors, actuals, forecasts)`, which returns `n`, `mae`, `bias`, `rmse`, `p90AbsError`, `nmaePct`, `meanActual`, `meanForecast`, or `None` when n = 0.
   - All values in MW.
-- [ ] T062 Add a snapshot-wide R1 sweep to `backend/tests/test_logic.py` (SC-001, constitution Art. II). For every delivery day 2026-01-02 … 2026-02-01 and every cutoff 00:00 … 23:00, run `select_forecast` on the real snapshot and assert that every non-null row has `publishTime ≤ cutoff_at(day, cutoff)`, and that no run with `publishTime ≤ cutoff` covering that hour is newer than the one chosen. Also assert that `history_for` (once T032 exists) never draws on a day later than D-2. Mark that part `skip` until T032 is done
+- [X] T062 Add a snapshot-wide R1 sweep to `backend/tests/test_logic.py` (SC-001, constitution Art. II). For every delivery day 2026-01-02 … 2026-02-01 and every cutoff 00:00 … 23:00, run `select_forecast` on the real snapshot and assert that every non-null row has `publishTime ≤ cutoff_at(day, cutoff)`, and that no run with `publishTime ≤ cutoff` covering that hour is newer than the one chosen. Also assert that `history_for` (once T032 exists) never draws on a day later than D-2. Mark that part `skip` until T032 is done
 
 ### API shell (contracts/api.md)
 
