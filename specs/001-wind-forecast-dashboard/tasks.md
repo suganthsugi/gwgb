@@ -282,13 +282,13 @@ P90 ≈ 4,154 MW and n = 744; the histogram sums to 744; the lead-time chart ris
 
 ### Tests for User Story 4 ⚠️ (write first, must fail)
 
-- [ ] T044 [US4] Add failing R9 breakdown tests to `backend/tests/test_logic.py` (hand-computed fixtures):
+- [X] T044 [US4] Add failing R9 breakdown tests to `backend/tests/test_logic.py` (hand-computed fixtures):
   - `by_hour` returns 24 entries `{hour, bias, mae, n}`.
   - `daily` returns one entry per day `{date, mae, bias, meanActual, n}`.
   - `worst_days` returns the top 10 by `mae`, descending.
   - `histogram` returns "16 bins, outer bins open-ended, `Σ count = n`". Edges are `[from, to)` in 1 GW steps from −8 to +8 GW. −7,000 MW falls in `[−7, −6)`, −7,001 in "< −7 GW", +7,000 in "≥ +7 GW", and +6,999 in `[6, 7)`.
   - `by_horizon` returns 12 buckets `[0,6) … [66,72)` labelled "0–6 h" and so on, uses all runs but scores only target hours within the pilot delivery days 2026-01-02 … 2026-02-01 (a December target hour in the fixture is ignored), and excludes horizons ≥ 72 h.
-- [ ] T045 [P] [US4] Add failing tests to `backend/tests/test_api.py`:
+- [X] T045 [P] [US4] Add failing tests to `backend/tests/test_api.py`:
   - **AC9**: `GET /api/metrics` → `metrics.n == 744`; `mae` ≈ 2,023, `bias` ≈ 1,746, `rmse` ≈ 2,497 and `p90AbsError` ≈ 4,154 (each ±1 MW after rounding); `sum(histogram.count) == 744`; `len(byHour) == 24`; `len(daily) == 31`; `worstDays` has ≤ 10 entries sorted by `mae` descending.
   - **AC10**: `GET /api/metrics/by-horizon` → 12 ascending buckets, with the last bucket's `mae` greater than the first's.
   - Both endpoints return 500 `{"detail": …}` when `get_snapshot` raises `SnapshotError`.
@@ -301,8 +301,8 @@ P90 ≈ 4,154 MW and n = 744; the histogram sums to 744; the lead-time chart ris
 
 ### Implementation for User Story 4
 
-- [ ] T047 [US4] Add `by_hour`, `daily`, `worst_days`, `histogram`, `by_horizon` and `accuracy_report(snapshot)` (decision time 09:00, not cached) to `backend/app/logic.py`. T044 must pass
-- [ ] T048 [US4] Add `GET /api/metrics` and `GET /api/metrics/by-horizon` to `backend/app/main.py` per contracts/api.md, caching the report keyed by `id(snapshot)`. T045 must pass
+- [X] T047 [US4] Add `by_hour`, `daily`, `worst_days`, `histogram`, `by_horizon` and `accuracy_report(snapshot)` (decision time 09:00, not cached) to `backend/app/logic.py`. T044 must pass
+- [X] T048 [US4] Add `GET /api/metrics` and `GET /api/metrics/by-horizon` to `backend/app/main.py` per contracts/api.md, caching the report keyed by `id(snapshot)`. T045 must pass
 - [ ] T049 [P] [US4] Create `frontend/src/components/AccuracyCharts.tsx`, four ApexCharts bar charts in a 2×2 MUI `Grid` (stacked on small screens):
   - "Error by lead time" (MAE by bucket).
   - "Bias by hour of day", with a zero-line y-annotation.

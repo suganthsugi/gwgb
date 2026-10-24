@@ -217,3 +217,31 @@ def decision(
     return cached(
         _decision_cache, snapshot, (day, cutoff), lambda: build_decision(snapshot, day, cutoff)
     )
+
+
+def _round_entries(rows: list[dict]) -> list[dict]:
+    return [{k: _num(v) if isinstance(v, float) else v for k, v in row.items()} for row in rows]
+
+
+def build_report(snapshot: Snapshot) -> dict:
+    report = logic.accuracy_report(snapshot)
+    return {
+        "metrics": _metrics(report["metrics"]),
+        "byHour": _round_entries(report["byHour"]),
+        "daily": _round_entries(report["daily"]),
+        "worstDays": _round_entries(report["worstDays"]),
+        "histogram": report["histogram"],
+    }
+
+
+@app.get("/api/metrics")
+def metrics(snapshot: Snapshot = Depends(get_snapshot)) -> dict:
+    return cached(_report_cache, snapshot, ("metrics",), lambda: build_report(snapshot))
+
+
+@app.get("/api/metrics/by-horizon")
+def metrics_by_horizon(snapshot: Snapshot = Depends(get_snapshot)) -> list[dict]:
+    return cached(
+        _report_cache, snapshot, ("by-horizon",),
+        lambda: _round_entries(logic.by_horizon(snapshot)),
+    )

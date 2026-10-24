@@ -200,3 +200,42 @@ def test_day_without_actuals_has_null_metrics(client):
     body = _decision(client, "delivery_date=2026-01-04")
     assert body["metrics"] is None
     assert all(p["actual"] is None and p["error"] is None for p in body["points"])
+
+
+# --- /api/metrics, /api/metrics/by-horizon: US4 (AC9, AC10) -----------------------------------
+
+
+def test_ac9_pilot_metrics(client):
+    r = client.get("/api/metrics")
+    assert r.status_code == 200
+    body = r.json()
+    m = body["metrics"]
+    assert m["n"] == 744
+    assert m["mae"] == pytest.approx(2023, abs=1)
+    assert m["bias"] == pytest.approx(1746, abs=1)
+    assert m["rmse"] == pytest.approx(2497, abs=1)
+    assert m["p90AbsError"] == pytest.approx(4154, abs=1)
+    assert sum(b["count"] for b in body["histogram"]) == 744
+    assert len(body["histogram"]) == 16
+    assert len(body["byHour"]) == 24
+    assert len(body["daily"]) == 31
+    worst = body["worstDays"]
+    assert len(worst) <= 10
+    assert [w["mae"] for w in worst] == sorted((w["mae"] for w in worst), reverse=True)
+
+
+def test_ac10_error_rises_with_lead_time(client):
+    r = client.get("/api/metrics/by-horizon")
+    assert r.status_code == 200
+    buckets = r.json()
+    assert len(buckets) == 12
+    assert [b["fromH"] for b in buckets] == sorted(b["fromH"] for b in buckets)
+    assert buckets[-1]["mae"] > buckets[0]["mae"]
+
+
+@pytest.mark.parametrize("path", ["/api/metrics", "/api/metrics/by-horizon"])
+def test_metrics_snapshot_error_is_500(client, path):
+    app.dependency_overrides[get_snapshot] = _broken
+    r = client.get(path)
+    assert r.status_code == 500
+    assert isinstance(r.json()["detail"], str)

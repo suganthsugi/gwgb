@@ -253,3 +253,121 @@ def drift(snapshot: Snapshot, day: date, cutoff: str | time) -> tuple[list[dict]
         "count": int(len(common)),
     }
     return entries, hours
+
+
+# --- R9: accuracy breakdowns (FR-013, research D8) --------------------------------------------
+
+ACCURACY_CUTOFF = "09:00"
+HIST_EDGES_MW = list(range(-7000, 8000, 1000))  # inner edges −7 … +7 GW → 16 bins
+HORIZON_STEP_H = 6
+HORIZON_MAX_H = 72
+WORST_DAYS = 10
+_MINUS = "−"
+
+
+def _scored(points: list[dict]) -> list[dict]:
+    return [p for p in points if p["error"] is not None and p["forecast"] is not None]
+
+
+def _bias_mae(errors: list[float]) -> tuple[float | None, float | None]:
+    if not errors:
+        return None, None
+    arr = np.array(errors, dtype=float)
+    return float(arr.mean()), float(np.abs(arr).mean())
+
+
+def by_hour(points: list[dict]) -> list[dict]:
+    """Bias and MAE per hour of day 0 – 23."""
+    groups: dict[int, list[float]] = {h: [] for h in range(24)}
+    for p in _scored(points):
+        groups[p["time"].hour].append(p["error"])
+    out = []
+    for h, errs in groups.items():
+        bias, mae = _bias_mae(errs)
+        out.append({"hour": h, "bias": bias, "mae": mae, "n": len(errs)})
+    return out
+
+
+def daily(points: list[dict]) -> list[dict]:
+    """MAE, bias and mean actual per delivery day with at least one scored hour."""
+    groups: dict[str, list[dict]] = {}
+    for p in _scored(points):
+        groups.setdefault(p["time"].strftime("%Y-%m-%d"), []).append(p)
+    out = []
+    for day in sorted(groups):
+        errs = [p["error"] for p in groups[day]]
+        bias, mae = _bias_mae(errs)
+        out.append({
+            "date": day, "mae": mae, "bias": bias,
+            "meanActual": float(np.mean([p["actual"] for p in groups[day]])), "n": len(errs),
+        })
+    return out
+
+
+def worst_days(days: list[dict], k: int = WORST_DAYS) -> list[dict]:
+    return sorted(days, key=lambda d: d["mae"], reverse=True)[:k]
+
+
+def _gw_label(mw: int) -> str:
+    v = mw // 1000
+    return f"{_MINUS}{-v}" if v < 0 else str(v)
+
+
+def histogram(errors: list[float]) -> list[dict]:
+    """1 GW bins ``[from, to)`` from −8 to +8 GW; the outer bins are open-ended."""
+    edges = HIST_EDGES_MW
+    counts = np.zeros(len(edges) + 1, dtype=int)
+    for e in errors:
+        counts[int(np.searchsorted(edges, e, side="right"))] += 1
+    bins = [{"fromMw": None, "toMw": edges[0], "label": f"< {_gw_label(edges[0])} GW"}]
+    for lo, hi in zip(edges[:-1], edges[1:]):
+        bins.append({"fromMw": lo, "toMw": hi, "label": f"{_gw_label(lo)} to {_gw_label(hi)} GW"})
+    bins.append({"fromMw": edges[-1], "toMw": None, "label": f"≥ +{edges[-1] // 1000} GW"})
+    for b, c in zip(bins, counts):
+        b["count"] = int(c)
+    return bins
+
+
+def by_horizon(snapshot: Snapshot) -> list[dict]:
+    """MAE and bias by lead time (target hour − publish time) in 6 h buckets up to 72 h, using all
+    runs but scoring only target hours in the pilot delivery days that have an actual."""
+    fc = snapshot.forecasts
+    start, end = day_start(WINDOW_START), day_start(WINDOW_END) + 24 * _HOUR
+    rows = fc[(fc["startTime"] >= start) & (fc["startTime"] < end)]
+    actual = rows["startTime"].map(snapshot.actuals)
+    rows = rows.assign(
+        error=rows["generation"] - actual,
+        horizon=(rows["startTime"] - rows["publishTime"]) / _HOUR,
+    )
+    rows = rows[rows["error"].notna() & (rows["horizon"] < HORIZON_MAX_H)]
+    bucket = (rows["horizon"] // HORIZON_STEP_H).astype(int)
+    out = []
+    for i, lo in enumerate(range(0, HORIZON_MAX_H, HORIZON_STEP_H)):
+        errs = rows.loc[bucket == i, "error"].tolist()
+        bias, mae = _bias_mae(errs)
+        out.append({
+            "bucket": f"{lo}–{lo + HORIZON_STEP_H} h", "fromH": lo,
+            "mae": mae, "bias": bias, "n": len(errs),
+        })
+    return out
+
+
+def accuracy_report(snapshot: Snapshot) -> dict:
+    """R9 at decision time 09:00 over every delivery day in the pilot window."""
+    points: list[dict] = []
+    day = WINDOW_START
+    while day <= WINDOW_END:
+        points.extend(select_forecast(snapshot, day, ACCURACY_CUTOFF)["points"])
+        day += timedelta(days=1)
+    scored = _scored(points)
+    days = daily(scored)
+    return {
+        "metrics": summarize_metrics(
+            [p["error"] for p in scored], [p["actual"] for p in scored],
+            [p["forecast"] for p in scored],
+        ),
+        "byHour": by_hour(scored),
+        "daily": days,
+        "worstDays": worst_days(days),
+        "histogram": histogram([p["error"] for p in scored]),
+    }

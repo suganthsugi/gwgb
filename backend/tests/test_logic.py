@@ -356,3 +356,96 @@ def test_r8_drift_takes_the_last_8_runs_before_cutoff():
 def test_r8_no_run_before_cutoff_gives_empty_drift():
     snap = make_snapshot(no_early_runs=True)
     assert logic.drift(snap, DAYS[0], "00:00") == ([], None)
+
+
+# --- R9 breakdowns (FR-013, research D8) ------------------------------------------------------
+
+
+def _pt(day: date, hour: int, forecast: float, actual: float | None) -> dict:
+    return {
+        "time": ts(day, hour), "forecast": forecast, "actual": actual,
+        "error": None if actual is None else forecast - actual,
+    }
+
+
+SCORED = [
+    _pt(date(2026, 1, 2), 0, 1100.0, 1000.0),  # +100
+    _pt(date(2026, 1, 2), 1, 900.0, 1000.0),  # −100
+    _pt(date(2026, 1, 3), 0, 1300.0, 1000.0),  # +300
+    _pt(date(2026, 1, 3), 1, 1000.0, None),  # not scored
+]
+
+
+def test_by_hour_has_24_entries():
+    rows = logic.by_hour(SCORED)
+    assert [r["hour"] for r in rows] == list(range(24))
+    assert rows[0] == {"hour": 0, "bias": pytest.approx(200.0), "mae": pytest.approx(200.0), "n": 2}
+    assert rows[1] == {"hour": 1, "bias": -100.0, "mae": 100.0, "n": 1}
+    assert rows[5] == {"hour": 5, "bias": None, "mae": None, "n": 0}
+
+
+def test_daily_one_entry_per_day():
+    rows = logic.daily(SCORED)
+    assert rows == [
+        {"date": "2026-01-02", "mae": 100.0, "bias": 0.0, "meanActual": 1000.0, "n": 2},
+        {"date": "2026-01-03", "mae": 300.0, "bias": 300.0, "meanActual": 1000.0, "n": 1},
+    ]
+
+
+def test_worst_days_top_10_by_mae_descending():
+    days = [{"date": f"2026-01-{d:02d}", "mae": float(d % 7), "bias": 0.0, "meanActual": 1.0,
+             "n": 24} for d in range(2, 20)]
+    worst = logic.worst_days(days)
+    assert len(worst) == 10
+    assert [w["mae"] for w in worst] == sorted((w["mae"] for w in worst), reverse=True)
+    assert worst[0]["mae"] == 6.0
+
+
+def test_histogram_bins_and_edges():
+    bins = logic.histogram([-7000.0, -7001.0, 7000.0, 6999.0, 0.0, -0.5, 12000.0])
+    assert len(bins) == 16
+    assert bins[0] == {"fromMw": None, "toMw": -7000, "label": "< −7 GW", "count": 1}
+    assert bins[1]["fromMw"] == -7000 and bins[1]["toMw"] == -6000 and bins[1]["count"] == 1
+    assert bins[14]["fromMw"] == 6000 and bins[14]["count"] == 1
+    assert bins[15] == {"fromMw": 7000, "toMw": None, "label": "≥ +7 GW", "count": 2}
+    assert bins[8]["fromMw"] == 0 and bins[8]["count"] == 1  # 0 is in [0, 1)
+    assert bins[7]["toMw"] == 0 and bins[7]["count"] == 1  # −0.5 is in [−1, 0)
+    assert sum(b["count"] for b in bins) == 7
+
+
+def test_by_horizon_buckets_pilot_target_hours_only():
+    from app.data import Snapshot
+
+    rows = [
+        # (publishTime, startTime, forecast); actuals are 1000 everywhere
+        ("2026-01-09T22:00Z", "2026-01-10T01:00Z", 1100.0),  # 3 h → [0, 6), +100
+        ("2026-01-09T22:00Z", "2026-01-10T05:00Z", 700.0),  # 7 h → [6, 12), −300
+        ("2026-01-08T00:00Z", "2026-01-10T23:00Z", 1500.0),  # 71 h → [66, 72), +500
+        ("2026-01-07T00:00Z", "2026-01-10T00:00Z", 9000.0),  # 72 h → excluded
+        ("2025-12-30T00:00Z", "2025-12-30T05:00Z", 9000.0),  # December target → ignored
+        ("2026-01-09T22:00Z", "2026-01-10T02:00Z", 1200.0),  # 4 h → [0, 6), +200
+    ]
+    fc = pd.DataFrame(
+        [(pd.Timestamp(p), pd.Timestamp(s), v) for p, s, v in rows],
+        columns=["publishTime", "startTime", "generation"],
+    ).sort_values(["publishTime", "startTime"]).reset_index(drop=True)
+    times = pd.DatetimeIndex([pd.Timestamp(s) for _, s, _ in rows])
+    snap = Snapshot(pd.Series(1000.0, index=times.unique()), fc,
+                    pd.DatetimeIndex(fc["publishTime"].unique()))
+    buckets = logic.by_horizon(snap)
+    assert [b["fromH"] for b in buckets] == list(range(0, 72, 6))
+    assert buckets[0]["bucket"] == "0–6 h"
+    assert buckets[0] == {"bucket": "0–6 h", "fromH": 0, "mae": 150.0, "bias": 150.0, "n": 2}
+    assert buckets[1]["n"] == 1 and buckets[1]["bias"] == -300.0
+    assert buckets[11]["n"] == 1 and buckets[11]["mae"] == 500.0
+    assert buckets[5] == {"bucket": "30–36 h", "fromH": 30, "mae": None, "bias": None, "n": 0}
+    assert sum(b["n"] for b in buckets) == 4
+
+
+def test_accuracy_report_on_fixture(snap):
+    report = logic.accuracy_report(snap)
+    # fixture covers Jan 2 – 6 at 09:00 (run C): errors 500 … 900, Jan 3 23:00 has no actual
+    assert report["metrics"]["n"] == 5 * 24 - 1
+    assert len(report["daily"]) == 5
+    assert report["worstDays"][0]["date"] == "2026-01-06"
+    assert sum(b["count"] for b in report["histogram"]) == report["metrics"]["n"]
