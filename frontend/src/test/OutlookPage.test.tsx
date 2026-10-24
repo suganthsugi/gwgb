@@ -1,6 +1,7 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
+import App from "../App";
 import type { Decision } from "../api";
 import { decision, decisionAt1200, decisionNoActuals, decisionNoRun, decisionPartial } from "./fixtures";
 import { renderOutlook } from "./render";
@@ -217,5 +218,33 @@ describe("OutlookPage — US3 (AC6)", () => {
     const rows = await screen.findAllByRole("row");
     expect(within(rows[4]).getByText("+3.5")).toHaveAttribute("data-risk", "true");
     expect(within(rows[5]).getByText("+1.5")).toHaveAttribute("data-risk", "false");
+  });
+});
+
+describe("Keyboard access (FR-029, Art. VI)", () => {
+  it("reaches every control by Tab, in order, each with an accessible name", async () => {
+    routeDecision({ "09:00": decision });
+    render(<App />);
+    await screen.findByText(/Forecast run in use/);
+    // move off 2 Jan so "Previous day" is enabled, then start tabbing from the top
+    await userEvent.click(screen.getByRole("button", { name: "Next day" }));
+    await screen.findByText(/Forecast run in use/);
+    (document.activeElement as HTMLElement | null)?.blur();
+    const targets = [
+      screen.getByRole("tab", { name: "Day-ahead outlook" }),
+      screen.getByRole("textbox", { name: "Delivery day" }),
+      screen.getByRole("button", { name: "Previous day" }),
+      screen.getByRole("button", { name: "Next day" }),
+      screen.getByRole("combobox", { name: "Decision time" }),
+      screen.getByRole("checkbox", { name: "Show actual outturn" }),
+    ];
+    const visited: Element[] = [];
+    for (let i = 0; i < 20 && visited.length < 40; i++) {
+      await userEvent.tab();
+      if (document.activeElement) visited.push(document.activeElement);
+    }
+    const positions = targets.map((t) => visited.indexOf(t));
+    expect(positions.every((p) => p >= 0), `positions ${positions}`).toBe(true);
+    expect([...positions].sort((a, b) => a - b)).toEqual(positions);
   });
 });

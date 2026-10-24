@@ -83,3 +83,22 @@ describe("Drill-down from accuracy to outlook (AC11)", () => {
     await expectOutlookFor28Jan(fetch);
   });
 });
+
+describe("Data service down (AC12, SC-005)", () => {
+  it("keeps the shell and shows an error in every data area on both tabs", async () => {
+    mockFetch({ "/api/": new TypeError("Failed to fetch") });
+    render(<App />);
+    expect(screen.getByRole("heading", { name: "REint Weather Forecast" })).toBeInTheDocument();
+    expect(screen.getAllByRole("tab")).toHaveLength(2);
+    expect(screen.getByRole("contentinfo")).toBeInTheDocument();
+    // outlook: run in use, signal + watch list, KPIs, chart, drift, table
+    expect(await screen.findAllByText("Couldn't load data: Failed to fetch")).toHaveLength(6);
+
+    await userEvent.click(screen.getByRole("tab", { name: "Forecast accuracy" }));
+    // accuracy: KPIs, four charts, worst days
+    await waitFor(() =>
+      expect(screen.getAllByText("Couldn't load data: Failed to fetch")).toHaveLength(6),
+    );
+    expect(screen.getByRole("heading", { name: "Forecast accuracy" })).toBeInTheDocument();
+  });
+});

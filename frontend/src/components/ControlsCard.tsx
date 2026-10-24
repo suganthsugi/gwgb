@@ -34,13 +34,6 @@ export default function ControlsCard({ deliveryDate, cutoff, showActuals, onChan
       <CardContent>
         <Stack direction={{ xs: "column", md: "row" }} spacing={2} alignItems={{ md: "center" }}>
           <Stack direction="row" spacing={1} alignItems="center">
-            <IconButton
-              aria-label="Previous day"
-              disabled={deliveryDate <= FIRST_DAY}
-              onClick={() => onChange({ deliveryDate: addDays(deliveryDate, -1) })}
-            >
-              <ChevronLeft />
-            </IconButton>
             <DatePicker
               label="Delivery day"
               timezone="UTC"
@@ -56,6 +49,13 @@ export default function ControlsCard({ deliveryDate, cutoff, showActuals, onChan
               }}
               slotProps={{ textField: { size: "small", sx: { width: 180 } } }}
             />
+            <IconButton
+              aria-label="Previous day"
+              disabled={deliveryDate <= FIRST_DAY}
+              onClick={() => onChange({ deliveryDate: addDays(deliveryDate, -1) })}
+            >
+              <ChevronLeft />
+            </IconButton>
             <IconButton
               aria-label="Next day"
               disabled={deliveryDate >= LAST_DAY}
