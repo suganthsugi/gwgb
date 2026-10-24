@@ -48,8 +48,8 @@ stories depend on these.
 
 ### Data snapshot (research D1, D2)
 
-- [ ] T004 Write failing tests in `backend/tests/test_data.py` for the cleaning functions. Forecast rows with `startTime < publishTime` are dropped. Forecasts are deduplicated on (`publishTime`, `startTime`), keeping the last row. Actuals are deduplicated on `startTime`. All times are parsed as tz-aware UTC. Only the fields `publishTime`, `startTime` and `generation` are kept. Also test `fetch_stream` with `httpx.MockTransport` and a fake `sleep`: 429 → 429 → 200 returns the 200 body after two waits; a `Retry-After: 3` header leads to a 3 s wait; six consecutive 429s raise after 5 retries
-- [ ] T005 Implement `backend/app/data.py` so that T004 passes:
+- [X] T004 Write failing tests in `backend/tests/test_data.py` for the cleaning functions. Forecast rows with `startTime < publishTime` are dropped. Forecasts are deduplicated on (`publishTime`, `startTime`), keeping the last row. Actuals are deduplicated on `startTime`. All times are parsed as tz-aware UTC. Only the fields `publishTime`, `startTime` and `generation` are kept. Also test `fetch_stream` with `httpx.MockTransport` and a fake `sleep`: 429 → 429 → 200 returns the 200 body after two waits; a `Retry-After: 3` header leads to a 3 s wait; six consecutive 429s raise after 5 retries
+- [X] T005 Implement `backend/app/data.py` so that T004 passes:
   - `clean_forecasts(rows)` and `clean_actuals(rows)`.
   - `fetch_stream(url, client=None, sleep=time.sleep)` using `httpx`, retrying on HTTP 429 up to 5 times. It waits for `Retry-After` when present and otherwise backs off exponentially from 1 s.
   - A `python -m app.data --refresh` CLI that fetches the two URLs from research D1 (actuals `settlementDateFrom=2025-12-01&settlementDateTo=2026-02-01&fuelType=WIND`; forecasts `publishDateTimeFrom=2025-11-30T00:00:00Z&publishDateTimeTo=2026-02-02T00:00:00Z`) and writes `backend/data/fuelhh_wind.json`, `backend/data/windfor.json` (sorted, only the used fields) and `backend/data/manifest.json` (`fetchedAt`, `requests[]`, `rows.actuals`, `rows.forecasts`, `runs`).
