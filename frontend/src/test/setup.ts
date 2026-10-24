@@ -57,3 +57,8 @@ afterEach(() => {
   charts.length = 0;
   vi.unstubAllGlobals();
 });
+
+/** Latest render of the chart with this `options.chart.id`. */
+export function chartById(id: string): ChartProps | undefined {
+  return [...charts].reverse().find((c) => (c.options?.chart as { id?: string })?.id === id);
+}

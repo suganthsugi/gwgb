@@ -323,8 +323,8 @@ P90 ≈ 4,154 MW and n = 744; the histogram sums to 744; the lead-time chart ris
 **Independent Test**: click "Open day →" for 28 Jan. The outlook tab opens on 28 Jan with "Show
 actual outturn" on.
 
-- [ ] T052 [US5] Extend `frontend/src/test/App.test.tsx` with failing **AC11** tests. Clicking "Open day →" on the 28 Jan row selects the "Day-ahead outlook" tab, the date shows 28 Jan, the "Show actual outturn" switch is checked, and `fetch` is called with `delivery_date=2026-01-28`. Calling the stubbed bias-by-day chart's `dataPointSelection` handler for 28 Jan does the same
-- [ ] T053 [US5] Implement `onOpenDay(date)` in `frontend/src/App.tsx`, setting `{tab: "outlook", deliveryDate: date, showActuals: true}`. Pass it through `frontend/src/pages/AccuracyPage.tsx` to `WorstDaysTable` and to the "Bias by day" chart's `chart.events.dataPointSelection` in `frontend/src/components/AccuracyCharts.tsx`. T052 must pass
+- [X] T052 [US5] Extend `frontend/src/test/App.test.tsx` with failing **AC11** tests. Clicking "Open day →" on the 28 Jan row selects the "Day-ahead outlook" tab, the date shows 28 Jan, the "Show actual outturn" switch is checked, and `fetch` is called with `delivery_date=2026-01-28`. Calling the stubbed bias-by-day chart's `dataPointSelection` handler for 28 Jan does the same
+- [X] T053 [US5] Implement `onOpenDay(date)` in `frontend/src/App.tsx`, setting `{tab: "outlook", deliveryDate: date, showActuals: true}`. Pass it through `frontend/src/pages/AccuracyPage.tsx` to `WorstDaysTable` and to the "Bias by day" chart's `chart.events.dataPointSelection` in `frontend/src/components/AccuracyCharts.tsx`. T052 must pass
 
 **Checkpoint**: all user stories work.
 

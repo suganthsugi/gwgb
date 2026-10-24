@@ -1,8 +1,9 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 import App from "../App";
 import { byHorizon, decision, metricsReport } from "./fixtures";
-import { mockFetch } from "./setup";
+import { chartById, mockFetch } from "./setup";
 
 describe("App shell (FR-026)", () => {
   beforeEach(() => {
@@ -38,5 +39,47 @@ describe("App shell (FR-026)", () => {
     const footer = screen.getByRole("contentinfo");
     expect(footer).toHaveTextContent("Elexon");
     expect(footer).toHaveTextContent("times in UTC (= UK time in January)");
+  });
+});
+
+describe("Drill-down from accuracy to outlook (AC11)", () => {
+  async function openAccuracy() {
+    const fetch = mockFetch({
+      "/api/decision": { body: decision },
+      "/api/metrics/by-horizon": { body: byHorizon },
+      "/api/metrics": { body: metricsReport },
+    });
+    render(<App />);
+    await userEvent.click(screen.getByRole("tab", { name: "Forecast accuracy" }));
+    await screen.findByRole("table", { name: "Worst days" });
+    return fetch;
+  }
+
+  async function expectOutlookFor28Jan(fetch: ReturnType<typeof mockFetch>) {
+    expect(screen.getByRole("tab", { name: "Day-ahead outlook" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.getByText(/Wind forecast for 28 Jan as it stood at 09:00 on 27 Jan/)).toBeInTheDocument();
+    expect(screen.getByLabelText("Show actual outturn")).toBeChecked();
+    await waitFor(() =>
+      expect(fetch.mock.calls.some(([url]) => String(url).includes("delivery_date=2026-01-28"))).toBe(
+        true,
+      ),
+    );
+  }
+
+  it('opens the day from the worst-days table "Open day →"', async () => {
+    const fetch = await openAccuracy();
+    await userEvent.click(screen.getByRole("button", { name: "Open day → 28 Jan" }));
+    await expectOutlookFor28Jan(fetch);
+  });
+
+  it("opens the day from a click on the bias-by-day chart", async () => {
+    const fetch = await openAccuracy();
+    const chart = chartById("bias-day")!;
+    const index = metricsReport.daily.findIndex((d) => d.date === "2026-01-28");
+    act(() => chart.options!.chart!.events!.dataPointSelection(null, null, { dataPointIndex: index }));
+    await expectOutlookFor28Jan(fetch);
   });
 });
