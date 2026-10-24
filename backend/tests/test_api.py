@@ -239,3 +239,25 @@ def test_metrics_snapshot_error_is_500(client, path):
     r = client.get(path)
     assert r.status_code == 500
     assert isinstance(r.json()["detail"], str)
+
+
+# --- static front end (T054, research D14) ----------------------------------------------------
+
+
+def test_api_still_works_with_the_static_mount(tmp_path, monkeypatch):
+    import importlib
+
+    import app.main as main_module
+
+    (tmp_path / "index.html").write_text("<!doctype html><title>REint</title>")
+    monkeypatch.setenv("FRONTEND_DIST", str(tmp_path))
+    reloaded = importlib.reload(main_module)
+    try:
+        c = TestClient(reloaded.app)
+        assert c.get("/api/health").status_code == 200
+        assert c.get("/api/decision?delivery_date=2026-03-01").status_code == 422
+        r = c.get("/")
+        assert r.status_code == 200 and "REint" in r.text
+    finally:
+        monkeypatch.delenv("FRONTEND_DIST")
+        importlib.reload(main_module)

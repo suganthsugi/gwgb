@@ -6,13 +6,16 @@ Result caches live here, keyed by ``id(snapshot)`` plus the request parameters (
 
 from __future__ import annotations
 
+import os
 from datetime import date, timedelta
 from functools import lru_cache
+from pathlib import Path
 
 import pandas as pd
 from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from app import logic
 from app.data import Snapshot, SnapshotError, load_snapshot
@@ -245,3 +248,12 @@ def metrics_by_horizon(snapshot: Snapshot = Depends(get_snapshot)) -> list[dict]
         _report_cache, snapshot, ("by-horizon",),
         lambda: _round_entries(logic.by_horizon(snapshot)),
     )
+
+
+# --- built front end, mounted after every /api route (research D14) ---------------------------
+
+DIST_DIR = Path(
+    os.environ.get("FRONTEND_DIST", Path(__file__).resolve().parents[2] / "frontend" / "dist")
+)
+if DIST_DIR.is_dir():
+    app.mount("/", StaticFiles(directory=DIST_DIR, html=True), name="frontend")
