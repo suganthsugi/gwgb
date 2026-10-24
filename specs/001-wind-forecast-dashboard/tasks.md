@@ -91,10 +91,10 @@ stories depend on these.
 
 ### API shell (contracts/api.md)
 
-- [ ] T011 Write failing tests in `backend/tests/test_api.py` using FastAPI `TestClient`:
+- [X] T011 Write failing tests in `backend/tests/test_api.py` using FastAPI `TestClient`:
   - `GET /api/health` returns 200 with `status: "ok"`, `rows.actuals > 0`, `rows.forecasts > 0`, `runs > 0`, `range.deliveryDays` = 2026-01-02 … 2026-02-01 and `range.historyDays` = 2025-12-02 … 2026-01-30.
   - With the `get_snapshot` dependency overridden to raise `SnapshotError`, `GET /api/health` returns 500 with `{"detail": "<sentence>"}`.
-- [ ] T012 Implement `backend/app/main.py` so that T011 passes:
+- [X] T012 Implement `backend/app/main.py` so that T011 passes:
   - A FastAPI app with a `get_snapshot()` dependency, cached with `functools.lru_cache`, that loads `backend/data/`.
   - An exception handler mapping `RequestValidationError` → 422 `{"detail": "<one plain sentence>"}` (research D10).
   - A handler mapping `SnapshotError` → 500 `{"detail": …}`.
