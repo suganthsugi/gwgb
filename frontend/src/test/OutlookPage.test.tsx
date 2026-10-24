@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { Decision } from "../api";
 import { decision, decisionAt1200, decisionNoActuals, decisionNoRun, decisionPartial } from "./fixtures";
 import { renderOutlook } from "./render";
-import { mockFetch } from "./setup";
+import { chartWithSeries, mockFetch } from "./setup";
 
 function routeDecision(byCutoff: Record<string, Decision> = {}) {
   return mockFetch({
@@ -103,5 +103,55 @@ describe("OutlookPage — US1", () => {
     const card = await screen.findByLabelText("Forecast average");
     expect(card).toHaveTextContent("11.7 GW");
     expect(card).toHaveTextContent("280,000 MWh");
+  });
+});
+
+describe("OutlookPage — US2", () => {
+  it("shows the signal card title and text", async () => {
+    routeDecision({ "09:00": decision });
+    renderOutlook();
+    const card = await screen.findByRole("region", { name: "Signal" });
+    expect(within(card).getByText("Forecast likely too high")).toBeInTheDocument();
+    expect(card).toHaveTextContent("1.8 GW above actual wind");
+  });
+
+  it("lists the watch-list items in order", async () => {
+    routeDecision({ "09:00": decision });
+    renderOutlook();
+    const list = await screen.findByRole("list", { name: "Watch list" });
+    const items = within(list).getAllByRole("listitem").map((li) => li.textContent);
+    expect(items[0]).toMatch(/^Widest likely range at 17:00/);
+    expect(items[1]).toMatch(/^Least wind at 16:00/);
+    expect(items[2]).toMatch(/^Steepest change/);
+    expect(items[3]).toMatch(/^Change against the run 24 h earlier/);
+  });
+
+  it("shows the drift chart, the comparison cards and the covered hours", async () => {
+    routeDecision({ "09:00": decision });
+    renderOutlook();
+    await screen.findByRole("region", { name: "Signal" });
+    const drift = chartWithSeries("Mean forecast");
+    expect(drift?.series[0].data).toHaveLength(8);
+    expect(screen.getByLabelText("vs previous run")).toHaveTextContent("No change");
+    expect(screen.getByLabelText("vs run 24 h earlier")).toHaveTextContent("−0.3 GW");
+    expect(screen.getByLabelText("vs run 24 h earlier")).toHaveTextContent("18:00");
+    expect(screen.getByText(/Covers 00:00–21:00/)).toBeInTheDocument();
+  });
+
+  it("does not state covered hours when all 24 are covered", async () => {
+    routeDecision({ "09:00": { ...decision, driftHours: { from: "00:00", to: "23:00", count: 24 } } });
+    renderOutlook();
+    await screen.findByRole("region", { name: "Signal" });
+    expect(screen.queryByText(/Covers /)).not.toBeInTheDocument();
+  });
+
+  it("shows the typical error range and the likely-range band", async () => {
+    routeDecision({ "09:00": decision });
+    renderOutlook();
+    // 11,666.7 − 4,300 = 7.4 GW … 11,666.7 + 1,200 = 12.9 GW
+    expect(await screen.findByLabelText("Typical error range")).toHaveTextContent("7.4–12.9 GW");
+    expect(chartWithSeries("Likely range (P10–P90)")).toBeDefined();
+    expect(screen.getByRole("columnheader", { name: "Low (GW)" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "High (GW)" })).toBeInTheDocument();
   });
 });

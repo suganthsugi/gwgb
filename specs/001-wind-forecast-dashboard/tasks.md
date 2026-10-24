@@ -209,10 +209,10 @@ drift of 8 runs over 00:00–21:00 with "No change" vs the previous run, `low �
   - **AC4**: the hour of min `forecast` is 16; `changeVs24h.meanChange` ≈ −300 MW (±50). The hour of max(`high − low`) is TBR (skip until T063).
   - **AC5**: `len(drift) == 8`; `driftHours` is `{from: "00:00", to: "21:00", count: 22}`; `changeVsPrevious.identical` is true.
   - **AC7**: `low ≤ high` for every point.
-- [ ] T030 [P] [US2] Write failing `frontend/src/test/insights.test.ts`:
+- [X] T030 [P] [US2] Write failing `frontend/src/test/insights.test.ts`:
   - **R6 thresholds**: bias 501 → `level` "high", "Forecast likely too high"; 500 → "close", "Forecast has been close to target"; −500 → "close"; −501 → "low", "Forecast likely too low". The text contains the bias, the adjusted figure and the raw forecast mean in GW.
   - **R7 order**: widest, leastWind, ramp, change. Ramp is omitted at 499 MW and shown at 500 MW. "No change" when `identical`. The wording names the fallback when `basis` is "previous". Items are skipped when their inputs are null.
-- [ ] T031 [P] [US2] Extend `frontend/src/test/OutlookPage.test.tsx`: the signal card title and text render; the watch-list items render in order; the drift chart shows run series; the "vs previous run" card reads "No change"; the "vs run 24 h earlier" card shows "−0.3 GW"; the covered-hours note "00:00–21:00" appears when `driftHours.count < 24`; the "Typical error range" KPI renders
+- [X] T031 [P] [US2] Extend `frontend/src/test/OutlookPage.test.tsx`: the signal card title and text render; the watch-list items render in order; the drift chart shows run series; the "vs previous run" card reads "No change"; the "vs run 24 h earlier" card shows "−0.3 GW"; the covered-hours note "00:00–21:00" appears when `driftHours.count < 24`; the "Typical error range" KPI renders
 
 ### Implementation for User Story 2
 
@@ -226,10 +226,10 @@ drift of 8 runs over 00:00–21:00 with "No change" vs the previous run, `low �
   - Call `GET /api/decision?delivery_date=2026-01-15` on the real snapshot and record the signal level, the adjusted average (GW, 1 decimal) and the widest-uncertainty hour.
   - Present them to the human owner for review, then write them into AC3/AC4 in `specs/001-wind-forecast-dashboard/spec.md`, replacing "TBR" and keeping the decision notes. Commit that on its own.
   - Replace the `pytest.skip("TBR …")` placeholders in `backend/tests/test_api.py` (T029) with real assertions (±50 MW, exact hour) and update the matching quickstart rows. T029 must then pass with no skips.
-- [ ] T034 [P] [US2] Implement `frontend/src/insights.ts`, pure with no React, so that T030 passes. Define the constants `SIGNAL_THRESHOLD_MW = 500` and `RAMP_THRESHOLD_MW = 500`. `signal(decision)` returns `{level, title, text}` with `adjusted = mean(non-null forecast) − history.bias`. `watchList(decision)` returns `WatchItem[]` in the R7 order
-- [ ] T035 [P] [US2] Create `frontend/src/components/SignalCard.tsx`, which has an amber left border (`colors.forecast`) when `level !== "close"`. Create `frontend/src/components/WatchListCard.tsx`, an ordered list. Lay them out side by side (`Grid item xs={12} md={6}`) and stacked on small screens
-- [ ] T036 [P] [US2] Create `frontend/src/components/DriftPanel.tsx`: a small ApexCharts line (x = `runLabel(publishTime)`, y = `meanForecast` in GW), a "Covers {from}–{to}" note when `driftHours.count < 24`, and two `KpiCard`s, "vs previous run" and "vs run 24 h earlier". Each shows `signedGw(meanChange)` with the biggest single-hour move as the hint, or "No change" when `identical`
-- [ ] T037 [US2] Integrate into `frontend/src/pages/OutlookPage.tsx` so that T031 passes:
+- [X] T034 [P] [US2] Implement `frontend/src/insights.ts`, pure with no React, so that T030 passes. Define the constants `SIGNAL_THRESHOLD_MW = 500` and `RAMP_THRESHOLD_MW = 500`. `signal(decision)` returns `{level, title, text}` with `adjusted = mean(non-null forecast) − history.bias`. `watchList(decision)` returns `WatchItem[]` in the R7 order
+- [X] T035 [P] [US2] Create `frontend/src/components/SignalCard.tsx`, which has an amber left border (`colors.forecast`) when `level !== "close"`. Create `frontend/src/components/WatchListCard.tsx`, an ordered list. Lay them out side by side (`Grid item xs={12} md={6}`) and stacked on small screens
+- [X] T036 [P] [US2] Create `frontend/src/components/DriftPanel.tsx`: a small ApexCharts line (x = `runLabel(publishTime)`, y = `meanForecast` in GW), a "Covers {from}–{to}" note when `driftHours.count < 24`, and two `KpiCard`s, "vs previous run" and "vs run 24 h earlier". Each shows `signedGw(meanChange)` with the biggest single-hour move as the hint, or "No change" when `identical`
+- [X] T037 [US2] Integrate into `frontend/src/pages/OutlookPage.tsx` so that T031 passes:
   - Add a `rangeArea` series "Likely range (P10–P90)" to `frontend/src/components/OutlookChart.tsx`.
   - Add Low and High (GW) columns to `frontend/src/components/HourlyTable.tsx`.
   - Add a "Typical error range" `KpiCard` showing `forecast mean − q90 … forecast mean − q10` in GW.

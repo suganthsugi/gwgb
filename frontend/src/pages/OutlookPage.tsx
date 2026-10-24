@@ -4,11 +4,15 @@ import type { View } from "../App";
 import { ApiError, fetchDecision, type Decision } from "../api";
 import ControlsCard from "../components/ControlsCard";
 import DataState from "../components/DataState";
+import DriftPanel from "../components/DriftPanel";
 import HourlyTable from "../components/HourlyTable";
 import KpiCard from "../components/KpiCard";
 import OutlookChart from "../components/OutlookChart";
 import RunInUseAlert from "../components/RunInUseAlert";
+import SignalCard from "../components/SignalCard";
+import WatchListCard from "../components/WatchListCard";
 import { dayLabel, dayMwh, gw, previousDay } from "../format";
+import { signal, watchList } from "../insights";
 
 interface Props {
   view: View;
@@ -50,6 +54,11 @@ export default function OutlookPage({ view, onChange }: Props) {
   const d = state.data;
   const hasRun = d !== null && d.usedRun !== null;
   const forecastMean = d ? mean(d.points.map((p) => p.forecast)) : null;
+  const typicalRange =
+    forecastMean !== null && d?.band
+      ? `${gw(forecastMean - d.band.q90Error).replace(" GW", "")}–` +
+        `${gw(forecastMean - d.band.q10Error)}`
+      : "–";
 
   return (
     <Stack spacing={2}>
@@ -76,6 +85,19 @@ export default function OutlookPage({ view, onChange }: Props) {
 
       {(loading || error || hasRun) && (
         <>
+          <DataState loading={loading} error={error} height={140}>
+            {d && (
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={6}>
+                  <SignalCard signal={signal(d)} />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <WatchListCard items={watchList(d)} />
+                </Grid>
+              </Grid>
+            )}
+          </DataState>
+
           <DataState loading={loading} error={error} height={90}>
             {d && (
               <Grid container spacing={2}>
@@ -84,6 +106,17 @@ export default function OutlookPage({ view, onChange }: Props) {
                     label="Forecast average"
                     value={forecastMean === null ? "–" : gw(forecastMean)}
                     hint={`${dayMwh(d.points)} for the day`}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <KpiCard
+                    label="Typical error range"
+                    value={typicalRange}
+                    hint={
+                      d.history
+                        ? `Daily average, from the last ${d.history.days} days at this decision time`
+                        : undefined
+                    }
                   />
                 </Grid>
               </Grid>
@@ -100,6 +133,10 @@ export default function OutlookPage({ view, onChange }: Props) {
               </DataState>
             </CardContent>
           </Card>
+
+          <DataState loading={loading} error={error} height={220}>
+            {d && <DriftPanel decision={d} />}
+          </DataState>
 
           <Card variant="outlined">
             <CardContent>
