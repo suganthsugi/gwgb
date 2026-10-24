@@ -141,14 +141,14 @@ hourly values. Change to 12:00 → run 14 Jan 11:30 (AC1, AC2).
 
 ### Tests for User Story 1 ⚠️ (write first, must fail)
 
-- [ ] T020 [P] [US1] Add failing `GET /api/decision` tests to `backend/tests/test_api.py`:
+- [X] T020 [P] [US1] Add failing `GET /api/decision` tests to `backend/tests/test_api.py`:
   - **AC1**: `delivery_date=2026-01-15` → `usedRun` `2026-01-14T07:30:00Z`, `minutesBeforeCutoff` 90, `cutoffAt` `2026-01-14T09:00:00Z`, 24 `points` each with `time`, `forecast`, `publishTime`, `horizonH`, `actual`, `error`.
   - **AC2**: `&cutoff=12:00` → `usedRun` `2026-01-14T11:30:00Z`.
   - **AC8**: `delivery_date=2026-03-01` → 422 with `detail` "Delivery date must be between 2026-01-02 and 2026-02-01.".
   - Missing `delivery_date` → 422 with a string `detail`.
   - `cutoff=09:30` and `cutoff=24:00` → 422 ("on the hour, 00:00–23:00").
   - With `get_snapshot` overridden by `make_snapshot(no_early_runs=True)` and `delivery_date=2026-01-02&cutoff=00:00` → 200 with `usedRun: null`, `minutesBeforeCutoff: null` and `points: []`.
-- [ ] T021 [P] [US1] Write failing `frontend/src/test/OutlookPage.test.tsx` (`fetch` mocked):
+- [X] T021 [P] [US1] Write failing `frontend/src/test/OutlookPage.test.tsx` (`fetch` mocked):
   - The header shows "Day-ahead wind outlook" and "Wind forecast for 15 Jan as it stood at 09:00 on 14 Jan, with the error you should expect."
   - The run-in-use alert reads "Forecast run in use: 14 Jan 07:30, published 1 h 30 min before the decision time. Later runs are excluded."
   - Selecting decision time 12:00 refetches with `cutoff=12:00`.
@@ -159,21 +159,21 @@ hourly values. Change to 12:00 → run 14 Jan 11:30 (AC1, AC2).
 
 ### Implementation for User Story 1
 
-- [ ] T022 [US1] Implement `GET /api/decision` in `backend/app/main.py`:
+- [X] T022 [US1] Implement `GET /api/decision` in `backend/app/main.py`:
   - Validate `delivery_date` "2026-01-02 ≤ D ≤ 2026-02-01, otherwise 422" and `cutoff` "on the hour, 00:00–23:00, default `09:00`, otherwise 422" through `logic.WINDOW_*` and `logic.parse_cutoff`.
   - Return `deliveryDate`, `cutoff`, `cutoffAt`, `usedRun`, `minutesBeforeCutoff` and `points` from `logic.select_forecast`. Leave `low`/`high` `null` for now.
   - Return the no-run shape from contracts/api.md when `usedRun` is `None`.
   - T020 must pass.
-- [ ] T023 [P] [US1] Create `frontend/src/components/ControlsCard.tsx`:
+- [X] T023 [P] [US1] Create `frontend/src/components/ControlsCard.tsx`:
   - An MUI `DatePicker` labelled "Delivery day", with `minDate` 2026-01-02 and `maxDate` 2026-02-01, in UTC.
   - ‹ › `IconButton`s with `aria-label` "Previous day" / "Next day", disabled at the ends of the window.
   - A `Select` labelled "Decision time" with options 00:00–23:00, where 09:00 reads "09:00 (before auction close)".
   - A `Switch` labelled "Show actual outturn".
   - Fully controlled through props.
-- [ ] T024 [P] [US1] Create `frontend/src/components/RunInUseAlert.tsx`. It shows "Forecast run in use: {runLabel}, published {duration} before the decision time. Later runs are excluded." when there is a run, or a warning alert "No forecast run was published before {T} on {D-1}, so there is no outlook for this decision time." when `usedRun` is null
-- [ ] T025 [P] [US1] Create `frontend/src/components/OutlookChart.tsx`, a `react-apexcharts` chart with x-axis categories 00:00–23:00 and y in GW (via `format.ts`). The series "Forecast" uses `colors.forecast` and is dashed. Null forecasts make gaps
-- [ ] T026 [P] [US1] Create `frontend/src/components/HourlyTable.tsx`, an MUI `Table` with columns Hour, Lead time (h), Forecast (GW). A row whose `forecast` is null shows "no forecast for this hour"
-- [ ] T027 [US1] Implement `frontend/src/pages/OutlookPage.tsx` so that T021 passes:
+- [X] T024 [P] [US1] Create `frontend/src/components/RunInUseAlert.tsx`. It shows "Forecast run in use: {runLabel}, published {duration} before the decision time. Later runs are excluded." when there is a run, or a warning alert "No forecast run was published before {T} on {D-1}, so there is no outlook for this decision time." when `usedRun` is null
+- [X] T025 [P] [US1] Create `frontend/src/components/OutlookChart.tsx`, a `react-apexcharts` chart with x-axis categories 00:00–23:00 and y in GW (via `format.ts`). The series "Forecast" uses `colors.forecast` and is dashed. Null forecasts make gaps
+- [X] T026 [P] [US1] Create `frontend/src/components/HourlyTable.tsx`, an MUI `Table` with columns Hour, Lead time (h), Forecast (GW). A row whose `forecast` is null shows "no forecast for this hour"
+- [X] T027 [US1] Implement `frontend/src/pages/OutlookPage.tsx` so that T021 passes:
   - The header from FR-014.
   - `ControlsCard` bound to the App state.
   - `fetchDecision` on every change of date or cutoff.
