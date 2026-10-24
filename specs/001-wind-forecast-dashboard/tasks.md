@@ -292,7 +292,7 @@ P90 ≈ 4,154 MW and n = 744; the histogram sums to 744; the lead-time chart ris
   - **AC9**: `GET /api/metrics` → `metrics.n == 744`; `mae` ≈ 2,023, `bias` ≈ 1,746, `rmse` ≈ 2,497 and `p90AbsError` ≈ 4,154 (each ±1 MW after rounding); `sum(histogram.count) == 744`; `len(byHour) == 24`; `len(daily) == 31`; `worstDays` has ≤ 10 entries sorted by `mae` descending.
   - **AC10**: `GET /api/metrics/by-horizon` → 12 ascending buckets, with the last bucket's `mae` greater than the first's.
   - Both endpoints return 500 `{"detail": …}` when `get_snapshot` raises `SnapshotError`.
-- [ ] T046 [P] [US4] Write failing `frontend/src/test/AccuracyPage.test.tsx`:
+- [X] T046 [P] [US4] Write failing `frontend/src/test/AccuracyPage.test.tsx`:
   - The header shows "Forecast accuracy" and "How far the forecast available at 09:00 the day before was from outturn, across every hour of the January 2026 pilot."
   - The KPIs are MAE (with nMAE %), Bias (risk-coloured when |bias| > 1 GW, either sign; test +1.2 GW and −1.2 GW), RMSE, P90 and Hours scored (744).
   - The four chart titles render: "Error by lead time", "Bias by hour of day", "Error distribution" (with legend text "forecast too low" and "forecast too high") and "Bias by day".
@@ -303,14 +303,14 @@ P90 ≈ 4,154 MW and n = 744; the histogram sums to 744; the lead-time chart ris
 
 - [X] T047 [US4] Add `by_hour`, `daily`, `worst_days`, `histogram`, `by_horizon` and `accuracy_report(snapshot)` (decision time 09:00, not cached) to `backend/app/logic.py`. T044 must pass
 - [X] T048 [US4] Add `GET /api/metrics` and `GET /api/metrics/by-horizon` to `backend/app/main.py` per contracts/api.md, caching the report keyed by `id(snapshot)`. T045 must pass
-- [ ] T049 [P] [US4] Create `frontend/src/components/AccuracyCharts.tsx`, four ApexCharts bar charts in a 2×2 MUI `Grid` (stacked on small screens):
+- [X] T049 [P] [US4] Create `frontend/src/components/AccuracyCharts.tsx`, four ApexCharts bar charts in a 2×2 MUI `Grid` (stacked on small screens):
   - "Error by lead time" (MAE by bucket).
   - "Bias by hour of day", with a zero-line y-annotation.
   - "Error distribution": every bin in `colors.neutral` (slate), an x-annotation at 0 in `colors.risk`, and the labels "forecast too low" left of zero and "forecast too high" right of zero.
   - "Bias by day", which accepts an `onOpenDay(date)` prop.
   - Values are shown in GW.
-- [ ] T050 [P] [US4] Create `frontend/src/components/WorstDaysTable.tsx`, an MUI `Table` with columns Day, MAE, Bias and Average actual (GW), plus an "Open day →" `Button` per row that calls `onOpenDay(date)`
-- [ ] T051 [US4] Implement `frontend/src/pages/AccuracyPage.tsx` so that T046 passes. It shows the header, the KPI cards, `AccuracyCharts` and `WorstDaysTable`. It uses `fetchMetrics` and `fetchByHorizon`, each data area wrapped in `DataState`. Wire it into `frontend/src/App.tsx`
+- [X] T050 [P] [US4] Create `frontend/src/components/WorstDaysTable.tsx`, an MUI `Table` with columns Day, MAE, Bias and Average actual (GW), plus an "Open day →" `Button` per row that calls `onOpenDay(date)`
+- [X] T051 [US4] Implement `frontend/src/pages/AccuracyPage.tsx` so that T046 passes. It shows the header, the KPI cards, `AccuracyCharts` and `WorstDaysTable`. It uses `fetchMetrics` and `fetchByHorizon`, each data area wrapped in `DataState`. Wire it into `frontend/src/App.tsx`
 
 **Checkpoint**: both screens work on their own.
 
