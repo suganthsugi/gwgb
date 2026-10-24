@@ -103,24 +103,24 @@ stories depend on these.
 
 ### Front-end foundation
 
-- [ ] T013 [P] Create `frontend/src/theme.ts`, the single source of colour meaning (Article VI). Export `colors = { forecast: <amber>, actual: <teal>, risk: <red>, neutral: <slate> }` and `seriesStyle = { forecast: { dash: true }, actual: { dash: false } }`, plus the MUI theme built from them
-- [ ] T014 [P] Create `frontend/src/format.ts`, all display conversion from MW. `gw(mw)` gives "11.6 GW" (1 decimal). `dayMwh(points)` is the sum of hourly MW × 1 h, formatted as MWh with thousands separators. `hhmm(iso)` returns the UTC "HH:MM". `runLabel(iso)` gives "14 Jan 07:30". `duration(minutes)` gives "1 h 30 min". `signedGw(mw)` gives "+1.7 GW" or "−0.3 GW"
-- [ ] T015 [P] Create `frontend/src/api.ts`:
+- [X] T013 [P] Create `frontend/src/theme.ts`, the single source of colour meaning (Article VI). Export `colors = { forecast: <amber>, actual: <teal>, risk: <red>, neutral: <slate> }` and `seriesStyle = { forecast: { dash: true }, actual: { dash: false } }`, plus the MUI theme built from them
+- [X] T014 [P] Create `frontend/src/format.ts`, all display conversion from MW. `gw(mw)` gives "11.6 GW" (1 decimal). `dayMwh(points)` is the sum of hourly MW × 1 h, formatted as MWh with thousands separators. `hhmm(iso)` returns the UTC "HH:MM". `runLabel(iso)` gives "14 Jan 07:30". `duration(minutes)` gives "1 h 30 min". `signedGw(mw)` gives "+1.7 GW" or "−0.3 GW"
+- [X] T015 [P] Create `frontend/src/api.ts`:
   - TypeScript types mirroring contracts/api.md exactly: `Decision`, `HourlyPoint`, `Metrics`, `RunComparison`, `DriftEntry`, `MetricsReport`, `HorizonBucket` and `HistogramBin`. Nullable fields are typed `| null`.
   - `class ApiError extends Error { detail: string }`.
   - `getJson<T>(path)`, which throws `ApiError` with the response `detail` for non-2xx responses and with the error message for network failures.
   - `fetchDecision(date, cutoff)` (calls `/api/decision?delivery_date=…&cutoff=…`), `fetchMetrics()` and `fetchByHorizon()`.
-- [ ] T016 [P] Create `frontend/src/components/DataState.tsx` and `frontend/src/components/KpiCard.tsx`.
+- [X] T016 [P] Create `frontend/src/components/DataState.tsx` and `frontend/src/components/KpiCard.tsx`.
   - `DataState` takes `{loading, error, empty, emptyText, children}` and renders, in that priority: an MUI `Skeleton`, an `Alert severity="error"` with the text "Couldn't load data: {detail}", the empty message, or the children.
   - `KpiCard` takes `{label, value, hint?, risk?}`. The value is coloured `colors.risk` when `risk` is set.
-- [ ] T017 [P] Create the test setup files.
+- [X] T017 [P] Create the test setup files.
   - `frontend/src/test/setup.ts` imports `@testing-library/jest-dom/vitest`. It mocks `react-apexcharts` with a stub that renders `<div data-testid="chart">` listing each series `name`, and exposes the `options.chart.events` handlers so tests can call `dataPointSelection`. It also provides `mockFetch(routes)`.
   - `frontend/src/test/fixtures.ts` holds sample `Decision` (15 Jan 09:00, with and without actuals, and no-run), `MetricsReport` and `HorizonBucket[]` objects shaped per contracts/api.md.
-- [ ] T018 Write failing `frontend/src/test/App.test.tsx`:
+- [X] T018 Write failing `frontend/src/test/App.test.tsx`:
   - The AppBar shows "REint Weather Forecast" and the subtitle "Day-ahead wind outlook and forecast reliability · GB national wind · Pilot: January 2026".
   - There are two tabs, "Day-ahead outlook" (selected by default) and "Forecast accuracy".
   - The footer names the data source (Elexon) and "times in UTC (= UK time in January)".
-- [ ] T019 Implement `frontend/src/App.tsx` so that T018 passes:
+- [X] T019 Implement `frontend/src/App.tsx` so that T018 passes:
   - `ThemeProvider` with the theme from T013.
   - `LocalizationProvider` with `AdapterDayjs`, using the dayjs `utc` plugin.
   - AppBar, Tabs and footer.
