@@ -104,3 +104,76 @@ def test_decision_snapshot_error_is_500(client):
     r = client.get("/api/decision?delivery_date=2026-01-15")
     assert r.status_code == 500
     assert "detail" in r.json()
+
+
+# --- /api/decision: US2 (AC3, AC4, AC5, AC7) --------------------------------------------------
+
+
+@pytest.fixture(scope="module")
+def jan15():
+    return TestClient(app).get("/api/decision?delivery_date=2026-01-15").json()
+
+
+def _mean(xs):
+    xs = [x for x in xs if x is not None]
+    return sum(xs) / len(xs)
+
+
+def test_ac3_history_and_raw_forecast(jan15):
+    assert jan15["history"]["days"] == 30
+    assert _mean(p["forecast"] for p in jan15["points"]) == pytest.approx(11_600, abs=50)
+
+
+def test_ac3_signal_and_adjusted_value(jan15):
+    pytest.skip("TBR - see T063")
+
+
+def test_ac4_least_wind_and_change_vs_24h(jan15):
+    f = [p["forecast"] for p in jan15["points"]]
+    assert f.index(min(f)) == 16
+    assert jan15["changeVs24h"]["basis"] == "24h"
+    assert jan15["changeVs24h"]["otherRun"] == "2026-01-13T07:30:00Z"
+    assert jan15["changeVs24h"]["meanChange"] == pytest.approx(-300, abs=50)
+
+
+def test_ac4_widest_hour(jan15):
+    pytest.skip("TBR - see T063")
+
+
+def test_ac5_drift_and_no_change_vs_previous(jan15):
+    assert len(jan15["drift"]) == 8
+    assert jan15["driftHours"] == {"from": "00:00", "to": "21:00", "count": 22}
+    assert jan15["changeVsPrevious"]["identical"] is True
+    assert jan15["changeVsPrevious"]["meanChange"] == 0
+
+
+def test_ac7_low_never_above_high(jan15):
+    for p in jan15["points"]:
+        assert p["low"] <= p["high"]
+
+
+def test_ac7_low_never_above_high_for_every_cutoff(client):
+    for hour in (0, 6, 9, 15, 23):
+        body = _decision(client, f"delivery_date=2026-01-28&cutoff={hour:02d}:00")
+        assert all(p["low"] <= p["high"] for p in body["points"] if p["low"] is not None)
+
+
+def test_decision_shape_has_band_history_and_comparisons(jan15):
+    assert set(jan15["band"]) == {"q10Error", "q90Error"}
+    assert set(jan15["history"]) == {"days", "bias", "mae"}
+    assert set(jan15["changeVsPrevious"]) == {
+        "basis", "otherRun", "hours", "meanChange", "biggestMove", "identical",
+    }
+    assert jan15["drift"][0]["publishTime"].endswith("Z")
+
+
+def test_no_run_still_returns_band_and_history(client):
+    from tests.fixtures import make_snapshot
+
+    snap = make_snapshot(no_early_runs=True)
+    app.dependency_overrides[get_snapshot] = lambda: snap
+    body = _decision(client, "delivery_date=2026-01-02&cutoff=00:00")
+    assert "band" in body and "history" in body
+    assert body["drift"] == [] and body["driftHours"] is None
+    assert body["changeVsPrevious"] is None and body["changeVs24h"] is None
+    assert body["metrics"] is None

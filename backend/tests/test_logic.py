@@ -178,6 +178,181 @@ def test_r1_sweep_never_uses_a_run_after_the_cutoff(real):
         day += timedelta(1)
 
 
-@pytest.mark.skip(reason="history_for is added in T032")
-def test_history_never_draws_on_a_day_after_d_minus_2(real):
-    pass
+@pytest.mark.parametrize("cutoff", ["00:00", "09:00", "23:00"])
+def test_history_never_draws_on_a_day_after_d_minus_2(real, cutoff):
+    day = logic.WINDOW_START
+    while day <= logic.WINDOW_END:
+        h = logic.history_for(real, day, cutoff)
+        assert max(h["source_days"]) == day - timedelta(days=2)
+        assert min(h["source_days"]) == day - timedelta(days=logic.HISTORY_DAYS + 1)
+        day += timedelta(1)
+
+
+# --- R3: history (FR-007) ---------------------------------------------------------------------
+
+D6 = date(2026, 1, 6)  # k = 4
+
+
+def test_r3_history_uses_only_days_d_minus_n_plus_1_to_d_minus_2(snap):
+    h = logic.history_for(snap, D6, "09:00", history_days=2)
+    assert h["source_days"] == [date(2026, 1, 3), date(2026, 1, 4)]
+    assert h["days"] == 2
+    # Jan 3: 23 hours of +600 (23:00 has no actual); Jan 4: 24 hours of +700
+    assert h["n"] == 47
+    assert h["bias"] == pytest.approx((23 * 600 + 24 * 700) / 47)
+    assert h["mae"] == pytest.approx((23 * 600 + 24 * 700) / 47)
+
+
+def test_r3_history_never_includes_d_minus_1_d_or_later(snap):
+    for n in (1, 2, 3, 30):
+        h = logic.history_for(snap, D6, "09:00", history_days=n)
+        assert all(day <= D6 - timedelta(days=2) for day in h["source_days"])
+    errors = logic.history_for(snap, D6, "09:00", history_days=30)["errors"]
+    assert 800.0 not in errors and 900.0 not in errors  # Jan 5 (D-1) and Jan 6 (D)
+
+
+def test_r3_days_counts_only_days_with_a_scored_hour(snap):
+    # D = Jan 4, N = 2 → Jan 1 (no data) and Jan 2
+    h = logic.history_for(snap, date(2026, 1, 4), "09:00", history_days=2)
+    assert h["source_days"] == [date(2026, 1, 1), date(2026, 1, 2)]
+    assert h["days"] == 1
+    assert h["bias"] == pytest.approx(500.0)
+
+
+def test_r3_history_uses_the_same_cutoff(snap):
+    h = logic.history_for(snap, D6, "00:00", history_days=2)
+    # run A errors: Jan 3 −1400, Jan 4 −1300, hours 00:00 – 21:00 only
+    assert h["n"] == 44
+    assert sorted(set(h["errors"])) == [-1400.0, -1300.0]
+
+
+def test_r3_empty_history():
+    snap = make_snapshot()
+    h = logic.history_for(snap, date(2026, 1, 2), "09:00", history_days=1)
+    assert h["days"] == 0
+    assert h["bias"] is None and h["mae"] is None
+    assert logic.overall_band(h) is None
+
+
+# --- R4, R5: likely range and typical error (FR-008, FR-009) ----------------------------------
+
+
+def test_r4_band_per_hour_from_linear_quantiles(snap):
+    sel = logic.select_forecast(snap, D6, "09:00")
+    h = logic.history_for(snap, D6, "09:00", history_days=2)
+    pts = logic.apply_band(sel["points"], h)
+    # hour 0: history [600, 700] → q10 610, q90 690; forecast 3000
+    assert pts[0]["low"] == pytest.approx(3000 - 690)
+    assert pts[0]["high"] == pytest.approx(3000 - 610)
+    # hour 23: history [700] only (Jan 3 23:00 has no actual)
+    assert pts[23]["low"] == pytest.approx(3230 - 700)
+    assert pts[23]["high"] == pytest.approx(3230 - 700)
+    assert all(p["low"] <= p["high"] for p in pts)
+
+
+def test_r4_band_is_null_without_forecast_or_history(snap):
+    sel = logic.select_forecast(snap, D6, "00:00")
+    h = logic.history_for(snap, D6, "00:00", history_days=2)
+    pts = logic.apply_band(sel["points"], h)
+    assert pts[21]["low"] is not None
+    assert pts[22]["low"] is None and pts[22]["high"] is None
+    empty = logic.history_for(snap, date(2026, 1, 2), "09:00", history_days=1)
+    pts = logic.apply_band(logic.select_forecast(snap, date(2026, 1, 2), "09:00")["points"], empty)
+    assert all(p["low"] is None and p["high"] is None for p in pts)
+
+
+def test_r5_overall_band_over_all_history_hours(snap):
+    h = logic.history_for(snap, D6, "09:00", history_days=2)
+    band = logic.overall_band(h)
+    # 23 × 600 then 24 × 700: q10 at rank 4.6 → 600, q90 at rank 41.4 → 700
+    assert band == {"q10Error": pytest.approx(600.0), "q90Error": pytest.approx(700.0)}
+
+
+# --- R7.4: comparing runs (research D6) -------------------------------------------------------
+
+
+def _tiny(runs: dict[str, dict[int, float]]):
+    """Snapshot of delivery day 2026-01-10 with the given runs {publishTime: {hour: MW}}."""
+    from app.data import Snapshot
+
+    day = date(2026, 1, 10)
+    rows = [
+        (pd.Timestamp(p), ts(day, h), v) for p, hours in runs.items() for h, v in hours.items()
+    ]
+    fc = pd.DataFrame(rows, columns=["publishTime", "startTime", "generation"])
+    fc = fc.sort_values(["publishTime", "startTime"]).reset_index(drop=True)
+    act = pd.Series([1.0], index=pd.DatetimeIndex([ts(day, 0)]))
+    return day, Snapshot(act, fc, pd.DatetimeIndex(fc["publishTime"].unique()).sort_values())
+
+
+def test_compare_identical_runs():
+    day, snap = _tiny({
+        "2026-01-09T04:30Z": {h: 100.0 * h for h in range(24)},
+        "2026-01-09T07:30Z": {h: 100.0 * h for h in range(24)},
+    })
+    c = logic.compare_runs(snap, day, pd.Timestamp("2026-01-09T07:30Z"), "previous")
+    assert c["identical"] is True
+    assert c["meanChange"] == 0
+    assert c["otherRun"] == pd.Timestamp("2026-01-09T04:30Z")
+    assert c["hours"] == 24
+
+
+def test_compare_known_shift_over_overlapping_hours_only():
+    day, snap = _tiny({
+        "2026-01-09T04:30Z": {0: 1000.0, 1: 1000.0, 2: 1000.0},
+        "2026-01-09T07:30Z": {1: 1300.0, 2: 400.0, 3: 5000.0},
+    })
+    c = logic.compare_runs(snap, day, pd.Timestamp("2026-01-09T07:30Z"), "previous")
+    assert c["hours"] == 2
+    assert c["meanChange"] == pytest.approx((300 - 600) / 2)
+    assert c["biggestMove"] == {"time": ts(day, 2), "delta": -600.0}
+    assert c["identical"] is False
+
+
+def test_compare_24h_reference_is_latest_run_at_least_24h_older():
+    snap = make_snapshot(with_24h_run=True)
+    day = date(2026, 1, 5)
+    c = logic.compare_runs(snap, day, run_time(day, "C"), "24h")
+    assert c["basis"] == "24h"
+    assert c["otherRun"] == run_time(day, "R24")
+    assert c["meanChange"] == pytest.approx(500.0)
+
+
+def test_compare_24h_falls_back_to_previous_run(snap):
+    c = logic.compare_runs(snap, D, run_time(D, "C"), "24h")
+    assert c["basis"] == "previous"
+    assert c["otherRun"] == run_time(D, "B")
+    assert c["meanChange"] == pytest.approx(1000.0)
+    assert c["biggestMove"]["delta"] == pytest.approx(1000.0)
+
+
+def test_compare_without_earlier_run_is_none(snap):
+    assert logic.compare_runs(snap, D, run_time(D, "A"), "previous") is None
+    assert logic.compare_runs(snap, D, run_time(D, "A"), "24h") is None
+
+
+# --- R8: drift (FR-012, research D7) ----------------------------------------------------------
+
+
+def test_r8_drift_uses_runs_that_exist_when_fewer_than_8(snap):
+    entries, hours = logic.drift(snap, D, "09:00")
+    assert [e["publishTime"] for e in entries] == [run_time(D, r) for r in ("A", "B", "C")]
+    # common hours 00:00 – 21:00 → mean of 10h over h = 0..21 is 105
+    assert [e["meanForecast"] for e in entries] == pytest.approx([1105.0, 2105.0, 3105.0])
+    assert hours == {"from": "00:00", "to": "21:00", "count": 22}
+
+
+def test_r8_drift_takes_the_last_8_runs_before_cutoff():
+    runs = {f"2026-01-0{8 + i // 6}T{(i % 6) * 4:02d}:00Z": {h: 100.0 * i for h in range(24)}
+            for i in range(10)}
+    day, snap = _tiny(runs)
+    entries, hours = logic.drift(snap, day, "09:00")
+    assert len(entries) == 8
+    assert entries[-1]["publishTime"] == pd.Timestamp("2026-01-09T08:00Z")
+    assert [e["meanForecast"] for e in entries] == pytest.approx([100.0 * i for i in range(1, 9)])
+    assert hours["count"] == 24
+
+
+def test_r8_no_run_before_cutoff_gives_empty_drift():
+    snap = make_snapshot(no_early_runs=True)
+    assert logic.drift(snap, DAYS[0], "00:00") == ([], None)

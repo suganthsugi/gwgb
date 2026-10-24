@@ -198,13 +198,13 @@ drift of 8 runs over 00:00–21:00 with "No change" vs the previous run, `low �
 
 ### Tests for User Story 2 ⚠️ (write first, must fail)
 
-- [ ] T028 [US2] Add failing tests to `backend/tests/test_logic.py`, extending `fixtures.make_snapshot()` as needed:
+- [X] T028 [US2] Add failing tests to `backend/tests/test_logic.py`, extending `fixtures.make_snapshot()` as needed:
   - **R3**: with `history_days=N`, history for D uses only days D-(N+1) … D-2. It never includes D-1, D or any later day. `days` counts days with at least one scored hour, and a day with missing actuals contributes only its scored hours.
   - **R4**: per-hour `low = forecast − q90(history@h)` and `high = forecast − q10(history@h)` match hand-computed linear quantiles; `low ≤ high` for every hour; `low`/`high` are null where there is no forecast or no history.
   - **R5**: `band.q10Error` / `q90Error` are computed over all history hours.
   - **compare_runs** (research D6): identical runs → `identical` True and `meanChange` 0; a known shift gives the expected `meanChange` and `biggestMove {time, delta}`; only overlapping hours are compared; the 24 h reference is the latest run with `publishTime ≤ usedRun − 24h`; with none, it falls back to the previous run with `basis` "previous"; no earlier run → `None`.
   - **R8 drift**: the last 8 runs ≤ cutoff, the mean over the hours common to all of them, `driftHours {from, to, count}`; fewer than 8 runs → the runs that exist.
-- [ ] T029 [P] [US2] Add failing snapshot tests to `backend/tests/test_api.py` for `delivery_date=2026-01-15`:
+- [X] T029 [P] [US2] Add failing snapshot tests to `backend/tests/test_api.py` for `delivery_date=2026-01-15`:
   - **AC3**: `history.days == 30`; mean of `points.forecast` ≈ 11,600 MW (±50). The adjusted value (mean − `history.bias`) and the signal level are TBR: write those assertions with `pytest.skip("TBR - see T063")` until T063 records the values in spec.md.
   - **AC4**: the hour of min `forecast` is 16; `changeVs24h.meanChange` ≈ −300 MW (±50). The hour of max(`high − low`) is TBR (skip until T063).
   - **AC5**: `len(drift) == 8`; `driftHours` is `{from: "00:00", to: "21:00", count: 22}`; `changeVsPrevious.identical` is true.
@@ -216,12 +216,12 @@ drift of 8 runs over 00:00–21:00 with "No change" vs the previous run, `low �
 
 ### Implementation for User Story 2
 
-- [ ] T032 [US2] Add the following to `backend/app/logic.py` so that T028 passes:
+- [X] T032 [US2] Add the following to `backend/app/logic.py` so that T028 passes:
   - `history_for(snapshot, day, cutoff, history_days=HISTORY_DAYS)`, which takes the R1 errors of days D-(N+1) … D-2 at the same cutoff (research D5) and returns `days`, `bias`, `mae` and per-hour q10/q90. It is not cached.
   - `apply_band(points, history)` (R4) and `overall_band(history)` (R5).
   - `compare_runs(snapshot, day, used_run, basis)` (R7.4, D6).
   - `drift(snapshot, day, cutoff)` (R8, D7).
-- [ ] T033 [US2] Cache the full decision payload in `backend/app/main.py`, keyed by `(id(snapshot), delivery_date, cutoff)` (research D5). Extend `GET /api/decision` to return `band{q10Error,q90Error}`, `history{days,bias,mae}`, `low`/`high` on points, `drift[]`, `driftHours`, `changeVsPrevious` and `changeVs24h` per contracts/api.md (null rules included). T029 must pass
+- [X] T033 [US2] Cache the full decision payload in `backend/app/main.py`, keyed by `(id(snapshot), delivery_date, cutoff)` (research D5). Extend `GET /api/decision` to return `band{q10Error,q90Error}`, `history{days,bias,mae}`, `low`/`high` on points, `drift[]`, `driftHours`, `changeVsPrevious` and `changeVs24h` per contracts/api.md (null rules included). T029 must pass
 - [ ] T063 [US2] Fill in the TBR values (constitution Art. I and VIII):
   - Call `GET /api/decision?delivery_date=2026-01-15` on the real snapshot and record the signal level, the adjusted average (GW, 1 decimal) and the widest-uncertainty hour.
   - Present them to the human owner for review, then write them into AC3/AC4 in `specs/001-wind-forecast-dashboard/spec.md`, replacing "TBR" and keeping the decision notes. Commit that on its own.

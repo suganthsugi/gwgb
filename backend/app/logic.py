@@ -116,3 +116,140 @@ def summarize_metrics(errors, actuals, forecasts) -> dict | None:
         "meanActual": mean_actual,
         "meanForecast": float(np.mean(f)),
     }
+
+
+# --- R3: history (FR-007, research D5) --------------------------------------------------------
+
+
+def history_for(
+    snapshot: Snapshot, day: date, cutoff: str | time, history_days: int = HISTORY_DAYS
+) -> dict:
+    """R1 errors at the same cutoff for days D-(N+1) … D-2: the N most recent delivery days that
+    had ended before the cutoff. D-1, D and later days are never used (constitution Art. II)."""
+    source_days = [day - timedelta(days=k) for k in range(history_days + 1, 1, -1)]
+    errors: list[float] = []
+    by_hour: dict[int, list[float]] = {h: [] for h in range(24)}
+    days = 0
+    for src in source_days:
+        points = select_forecast(snapshot, src, cutoff)["points"]
+        scored = [p for p in points if p["error"] is not None]
+        if scored:
+            days += 1
+        for p in scored:
+            errors.append(p["error"])
+            by_hour[p["time"].hour].append(p["error"])
+    arr = np.array(errors, dtype=float)
+    return {
+        "source_days": source_days,
+        "days": days,
+        "n": len(errors),
+        "bias": float(arr.mean()) if errors else None,
+        "mae": float(np.abs(arr).mean()) if errors else None,
+        "errors": errors,
+        "by_hour": by_hour,
+    }
+
+
+def _q(values, q: float) -> float:
+    return float(np.quantile(np.asarray(values, dtype=float), q, method="linear"))
+
+
+# --- R4, R5: likely range (FR-008, FR-009) ----------------------------------------------------
+
+
+def apply_band(points: list[dict], history: dict) -> list[dict]:
+    """R4: low = forecast − q90(history@h), high = forecast − q10(history@h)."""
+    out = []
+    for p in points:
+        hist = history["by_hour"].get(p["time"].hour, [])
+        if p["forecast"] is None or not hist:
+            low = high = None
+        else:
+            low = p["forecast"] - _q(hist, 0.9)
+            high = p["forecast"] - _q(hist, 0.1)
+        out.append({**p, "low": low, "high": high})
+    return out
+
+
+def overall_band(history: dict) -> dict | None:
+    """R5: P10 / P90 of all history errors."""
+    if not history["errors"]:
+        return None
+    return {"q10Error": _q(history["errors"], 0.1), "q90Error": _q(history["errors"], 0.9)}
+
+
+# --- R7.4: comparing two runs (research D6) ---------------------------------------------------
+
+
+def _run_series(rows: pd.DataFrame, publish: pd.Timestamp) -> pd.Series:
+    run = rows[rows["publishTime"] == publish]
+    return run.set_index("startTime")["generation"]
+
+
+def compare_runs(snapshot: Snapshot, day: date, used_run: pd.Timestamp, basis: str) -> dict | None:
+    """Compare the run in use with an earlier run over the hours of D both cover.
+
+    ``basis="24h"``: the latest run published at least 24 h before ``used_run``; if none covers D,
+    the previous run (reported as ``basis="previous"``). ``basis="previous"``: the latest earlier
+    run that covers D.
+    """
+    rows = _day_rows(snapshot, day)
+    earlier = rows[rows["publishTime"] < used_run]["publishTime"]
+    other = None
+    if basis == "24h":
+        older = earlier[earlier <= used_run - 24 * _HOUR]
+        if not older.empty:
+            other = older.max()
+    if other is None:
+        basis = "previous"
+        if earlier.empty:
+            return None
+        other = earlier.max()
+
+    used = _run_series(rows, used_run)
+    ref = _run_series(rows, other)
+    common = used.index.intersection(ref.index).sort_values()
+    if common.empty:
+        return None
+    delta = used[common] - ref[common]
+    biggest = delta.abs().idxmax()
+    return {
+        "basis": basis,
+        "otherRun": other,
+        "hours": int(len(common)),
+        "meanChange": float(delta.mean()),
+        "biggestMove": {"time": biggest, "delta": float(delta[biggest])},
+        "identical": bool((delta == 0).all()),
+    }
+
+
+# --- R8: drift (FR-012, research D7) ----------------------------------------------------------
+
+DRIFT_RUNS = 8
+
+
+def drift(snapshot: Snapshot, day: date, cutoff: str | time) -> tuple[list[dict], dict | None]:
+    """The last 8 runs at or before the cutoff that cover D, each as its mean forecast over the
+    hours all of them cover."""
+    rows = _day_rows(snapshot, day)
+    rows = rows[rows["publishTime"] <= cutoff_at(day, cutoff)]
+    runs = sorted(rows["publishTime"].unique())[-DRIFT_RUNS:]
+    if not runs:
+        return [], None
+    series = [_run_series(rows, r) for r in runs]
+    common = series[0].index
+    for s in series[1:]:
+        common = common.intersection(s.index)
+    common = common.sort_values()
+    if common.empty:
+        return [], None
+    entries = [
+        {"publishTime": pd.Timestamp(r), "meanForecast": float(s[common].mean())}
+        for r, s in zip(runs, series)
+    ]
+    hours = {
+        "from": common[0].strftime("%H:%M"),
+        "to": common[-1].strftime("%H:%M"),
+        "count": int(len(common)),
+    }
+    return entries, hours

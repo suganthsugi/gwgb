@@ -107,22 +107,50 @@ def parse_cutoff(s: str) -> str:
     return s
 
 
+def _comparison(c: dict | None) -> dict | None:
+    if c is None:
+        return None
+    move = c["biggestMove"]
+    return {
+        "basis": c["basis"],
+        "otherRun": iso(c["otherRun"]),
+        "hours": c["hours"],
+        "meanChange": _num(c["meanChange"]),
+        "biggestMove": {"time": iso(move["time"]), "delta": _num(move["delta"])},
+        "identical": c["identical"],
+    }
+
+
 def build_decision(snapshot: Snapshot, day: date, cutoff: str) -> dict:
     sel = logic.select_forecast(snapshot, day, cutoff)
+    history = logic.history_for(snapshot, day, cutoff)
+    band = logic.overall_band(history)
+    used = sel["used_run"]
+    drift, drift_hours = logic.drift(snapshot, day, cutoff)
+    points = logic.apply_band(sel["points"], history)
     return {
         "deliveryDate": str(day),
         "cutoff": cutoff,
         "cutoffAt": iso(logic.cutoff_at(day, cutoff)),
-        "usedRun": iso(sel["used_run"]),
+        "usedRun": iso(used),
         "minutesBeforeCutoff": sel["minutes_before_cutoff"],
-        "band": None,
-        "history": None,
-        "drift": [],
-        "driftHours": None,
-        "changeVsPrevious": None,
-        "changeVs24h": None,
+        "band": None if band is None else {k: _num(v) for k, v in band.items()},
+        "history": {
+            "days": history["days"], "bias": _num(history["bias"]), "mae": _num(history["mae"]),
+        },
+        "drift": [
+            {"publishTime": iso(e["publishTime"]), "meanForecast": _num(e["meanForecast"])}
+            for e in drift
+        ],
+        "driftHours": drift_hours,
+        "changeVsPrevious": (
+            None if used is None else _comparison(logic.compare_runs(snapshot, day, used, "previous"))
+        ),
+        "changeVs24h": (
+            None if used is None else _comparison(logic.compare_runs(snapshot, day, used, "24h"))
+        ),
         "metrics": None,
-        "points": [_point(p) for p in sel["points"]],
+        "points": [_point(p) for p in points],
     }
 
 
